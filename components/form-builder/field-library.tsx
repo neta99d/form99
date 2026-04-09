@@ -1,0 +1,95 @@
+'use client'
+
+import { useFormBuilder } from '@/lib/form-builder-store'
+import { FIELD_CATEGORIES, type FieldType } from '@/lib/form-builder-types'
+import {
+  Type,
+  Mail,
+  Hash,
+  Phone,
+  AlignLeft,
+  List,
+  CheckSquare,
+  Circle,
+  Calendar,
+  Upload,
+  Heading,
+  FileText,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+const FIELD_ICONS: Record<FieldType, React.ElementType> = {
+  text: Type,
+  email: Mail,
+  number: Hash,
+  phone: Phone,
+  textarea: AlignLeft,
+  select: List,
+  checkbox: CheckSquare,
+  radio: Circle,
+  date: Calendar,
+  file: Upload,
+  heading: Heading,
+  paragraph: FileText,
+}
+
+const FIELD_LABELS: Record<FieldType, string> = {
+  text: 'Text Input',
+  email: 'Email',
+  number: 'Number',
+  phone: 'Phone',
+  textarea: 'Long Text',
+  select: 'Dropdown',
+  checkbox: 'Checkbox',
+  radio: 'Radio Group',
+  date: 'Date Picker',
+  file: 'File Upload',
+  heading: 'Heading',
+  paragraph: 'Paragraph',
+}
+
+export function FieldLibrary() {
+  const { addField } = useFormBuilder()
+
+  return (
+    <aside className="w-64 border-r border-border bg-card flex flex-col h-full">
+      <div className="p-4 border-b border-border">
+        <h2 className="text-sm font-semibold text-foreground">Form Elements</h2>
+        <p className="text-xs text-muted-foreground mt-1">Click to add fields</p>
+      </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        {Object.entries(FIELD_CATEGORIES).map(([category, types]) => (
+          <div key={category} className="mb-5">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-1">
+              {category}
+            </h3>
+            <div className="flex flex-col gap-1.5">
+              {types.map(type => {
+                const Icon = FIELD_ICONS[type as FieldType]
+                return (
+                  <button
+                    key={type}
+                    onClick={() => addField(type as FieldType)}
+                    className={cn(
+                      'flex items-center gap-3 px-3 py-2.5 rounded-md text-left',
+                      'bg-background border border-border/50',
+                      'hover:border-primary/30 hover:bg-accent/50',
+                      'transition-all duration-150 group'
+                    )}
+                  >
+                    <div className="size-8 rounded-md bg-secondary flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                      <Icon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">
+                      {FIELD_LABELS[type as FieldType]}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </aside>
+  )
+}
