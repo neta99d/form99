@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { useFormBuilder } from '@/lib/form-builder-store'
 import { generateFormHTML } from '@/lib/form-builder-types'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Eye, X, Monitor, Smartphone, Code, Copy, Check, FileCode, Send, Loader2, CheckCircle, XCircle, RotateCcw } from 'lucide-react'
+import { Eye, X, Monitor, Smartphone, Code, Copy, Check, Send, Loader2, CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function BuilderHeader() {
@@ -87,8 +88,14 @@ export function BuilderHeader() {
       <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-primary flex items-center justify-center">
-              <FileCode className="size-4 text-primary-foreground" />
+            <div className="size-9 shrink-0 flex items-center justify-center">
+              <Image
+                src="/icon.svg"
+                alt="Form Builder icon"
+                width={28}
+                height={26}
+                className="h-[26px] w-[28px]"
+              />
             </div>
             <h1 className="text-base font-semibold text-foreground">Form Builder</h1>
           </div>
