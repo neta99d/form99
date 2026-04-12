@@ -97,7 +97,7 @@ export function BuilderHeader() {
                 className="h-[26px] w-[28px]"
               />
             </div>
-            <h1 className="text-base font-semibold text-foreground">בונה טפסים</h1>
+            <h1 className="text-base font-semibold text-foreground">FORMS</h1>
           </div>
         </div>
 
@@ -164,7 +164,7 @@ export function BuilderHeader() {
                 className="gap-1.5"
               >
                 <Code className="size-4" />
-                פרסום
+                HTML
               </Button>
               <Button
                 onClick={handleSend}
