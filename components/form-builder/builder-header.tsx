@@ -63,7 +63,7 @@ export function BuilderHeader() {
 
       if (response.ok) {
         setSendStatus('success')
-        setSendMessage('Form sent successfully!')
+        setSendMessage('הטופס נשלח בהצלחה!')
         setTimeout(() => {
           setSendStatus('idle')
           setSendMessage('')
@@ -73,7 +73,7 @@ export function BuilderHeader() {
       }
     } catch (error) {
       setSendStatus('error')
-      setSendMessage(error instanceof Error ? error.message : 'Failed to send form')
+      setSendMessage(error instanceof Error ? error.message : 'שליחת הטופס נכשלה')
       setTimeout(() => {
         setSendStatus('idle')
         setSendMessage('')
@@ -91,13 +91,13 @@ export function BuilderHeader() {
             <div className="size-9 shrink-0 flex items-center justify-center">
               <Image
                 src="/icon.svg"
-                alt="Form Builder icon"
+                alt="אייקון בונה הטפסים"
                 width={28}
                 height={26}
                 className="h-[26px] w-[28px]"
               />
             </div>
-            <h1 className="text-base font-semibold text-foreground">Form Builder</h1>
+            <h1 className="text-base font-semibold text-foreground">בונה טפסים</h1>
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export function BuilderHeader() {
                   )}
                 >
                   <Monitor className="size-4" />
-                  Desktop
+                  מחשב
                 </button>
                 <button
                   onClick={() => setPreviewDevice('mobile')}
@@ -128,7 +128,7 @@ export function BuilderHeader() {
                   )}
                 >
                   <Smartphone className="size-4" />
-                  Mobile
+                  נייד
                 </button>
               </div>
 
@@ -138,7 +138,7 @@ export function BuilderHeader() {
                 className="gap-1.5"
               >
                 <X className="size-4" />
-                Exit Preview
+                סגירת תצוגה
               </Button>
             </>
           ) : (
@@ -149,7 +149,7 @@ export function BuilderHeader() {
                 className="gap-1.5 text-muted-foreground hover:text-destructive"
               >
                 <RotateCcw className="size-4" />
-                Reset
+                איפוס
               </Button>
               <Button
                 variant="outline"
@@ -157,14 +157,14 @@ export function BuilderHeader() {
                 className="gap-1.5"
               >
                 <Eye className="size-4" />
-                Preview
+                תצוגה מקדימה
               </Button>
               <Button
                 onClick={() => setPublishDialogOpen(true)}
                 className="gap-1.5"
               >
                 <Code className="size-4" />
-                Publish
+                פרסום
               </Button>
               <Button
                 onClick={handleSend}
@@ -175,22 +175,22 @@ export function BuilderHeader() {
                 {sendStatus === 'loading' ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    Sending...
+                    שולח...
                   </>
                 ) : sendStatus === 'success' ? (
                   <>
                     <CheckCircle className="size-4 text-success" />
-                    Sent!
+                    נשלח!
                   </>
                 ) : sendStatus === 'error' ? (
                   <>
                     <XCircle className="size-4" />
-                    Failed
+                    נכשל
                   </>
                 ) : (
                   <>
                     <Send className="size-4" />
-                    Send
+                    שליחה
                   </>
                 )}
               </Button>
@@ -203,15 +203,15 @@ export function BuilderHeader() {
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Export Form HTML</DialogTitle>
+            <DialogTitle>ייצוא קוד HTML</DialogTitle>
             <DialogDescription>
-              Copy the HTML code below to embed this form on any website.
+              העתיקו את קוד ה-HTML הבא כדי להטמיע את הטופס בכל אתר.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 min-h-0 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                {formConfig.fields.length} field{formConfig.fields.length !== 1 ? 's' : ''} configured
+                {formConfig.fields.length} שדות הוגדרו
               </div>
               <Button
                 variant="outline"
@@ -222,12 +222,12 @@ export function BuilderHeader() {
                 {copied ? (
                   <>
                     <Check className="size-4 text-success" />
-                    Copied!
+                    הועתק!
                   </>
                 ) : (
                   <>
                     <Copy className="size-4" />
-                    Copy HTML
+                    העתקת HTML
                   </>
                 )}
               </Button>

@@ -18,9 +18,9 @@ function FormBuilderContent() {
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <BuilderHeader />
       <div className="flex-1 flex overflow-hidden">
-        {!previewMode && <FieldLibrary />}
-        <FormCanvas />
         {!previewMode && <FieldSettings />}
+        <FormCanvas />
+        {!previewMode && <FieldLibrary />}
       </div>
     </div>
   )

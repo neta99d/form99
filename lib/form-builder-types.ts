@@ -55,25 +55,25 @@ export interface UserInfo {
 }
 
 export const DEFAULT_FIELD_CONFIGS: Record<FieldType, Partial<FormField>> = {
-  text: { label: 'Text Field', placeholder: 'Enter text...', required: false },
-  email: { label: 'Email', placeholder: 'your@email.com', required: false },
-  number: { label: 'Number', placeholder: '0', required: false },
-  phone: { label: 'Phone', placeholder: '(123) 456-7890', required: false },
-  textarea: { label: 'Long Text', placeholder: 'Enter your message...', required: false, rows: 4 },
-  select: { label: 'Dropdown', required: false, options: [{ id: '1', label: 'Option 1', value: 'option1' }, { id: '2', label: 'Option 2', value: 'option2' }] },
-  checkbox: { label: 'Checkbox', required: false },
-  radio: { label: 'Radio Group', required: false, options: [{ id: '1', label: 'Choice 1', value: 'choice1' }, { id: '2', label: 'Choice 2', value: 'choice2' }] },
-  date: { label: 'Date', required: false },
-  file: { label: 'File Upload', required: false, accept: '*/*', multiple: false },
-  heading: { label: 'Heading', headingLevel: 'h2', content: 'Section Title' },
-  paragraph: { label: 'Paragraph', content: 'Add description or instructions here.' },
+  text: { label: 'שדה טקסט', placeholder: 'הקלידו טקסט...', required: false },
+  email: { label: 'אימייל', placeholder: 'name@example.com', required: false },
+  number: { label: 'מספר', placeholder: '0', required: false },
+  phone: { label: 'טלפון', placeholder: '050-1234567', required: false },
+  textarea: { label: 'טקסט ארוך', placeholder: 'כתבו את ההודעה שלכם...', required: false, rows: 4 },
+  select: { label: 'רשימה נפתחת', required: false, options: [{ id: '1', label: 'אפשרות 1', value: 'option1' }, { id: '2', label: 'אפשרות 2', value: 'option2' }] },
+  checkbox: { label: 'תיבת סימון', required: false },
+  radio: { label: 'בחירה אחת', required: false, options: [{ id: '1', label: 'אפשרות 1', value: 'choice1' }, { id: '2', label: 'אפשרות 2', value: 'choice2' }] },
+  date: { label: 'תאריך', required: false },
+  file: { label: 'העלאת קובץ', required: false, accept: '*/*', multiple: false },
+  heading: { label: 'כותרת', headingLevel: 'h2', content: 'כותרת מקטע' },
+  paragraph: { label: 'פסקה', content: 'הוסיפו כאן תיאור או הנחיות.' },
 }
 
 export const FIELD_CATEGORIES = {
-  'Basic Fields': ['text', 'email', 'number', 'phone', 'textarea'],
-  'Choice Fields': ['select', 'checkbox', 'radio'],
-  'Special Fields': ['date', 'file'],
-  'Layout Elements': ['heading', 'paragraph'],
+  'שדות בסיסיים': ['text', 'email', 'number', 'phone', 'textarea'],
+  'שדות בחירה': ['select', 'checkbox', 'radio'],
+  'שדות מיוחדים': ['date', 'file'],
+  'רכיבי פריסה': ['heading', 'paragraph'],
 } as const
 
 export function createField(type: FieldType): FormField {
@@ -81,7 +81,7 @@ export function createField(type: FieldType): FormField {
   return {
     id: `field_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
     type,
-    label: config.label || 'New Field',
+    label: config.label || 'שדה חדש',
     placeholder: config.placeholder,
     required: config.required || false,
     helperText: config.helperText,
@@ -231,7 +231,7 @@ export function generateFormHTML(config: FormConfig): string {
   <div class="form-group">
     <label class="form-label">${field.label}${requiredMark}</label>
     <select class="form-select" name="${field.id}"${field.required ? ' required' : ''}>
-      <option value="">Select an option...</option>
+      <option value="">בחרו אפשרות...</option>
       ${optionsHTML}
     </select>
     ${helperHTML}
@@ -273,7 +273,7 @@ export function generateFormHTML(config: FormConfig): string {
         const HeadingTag = field.headingLevel || 'h2'
         fieldsHTML += `
   <div class="form-heading">
-    <${HeadingTag}>${field.content || 'Heading'}</${HeadingTag}>
+    <${HeadingTag}>${field.content || 'כותרת'}</${HeadingTag}>
   </div>`
         break
       case 'paragraph':

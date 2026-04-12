@@ -34,28 +34,28 @@ const FIELD_ICONS: Record<FieldType, React.ElementType> = {
 }
 
 const FIELD_LABELS: Record<FieldType, string> = {
-  text: 'Text Input',
-  email: 'Email',
-  number: 'Number',
-  phone: 'Phone',
-  textarea: 'Long Text',
-  select: 'Dropdown',
-  checkbox: 'Checkbox',
-  radio: 'Radio Group',
-  date: 'Date Picker',
-  file: 'File Upload',
-  heading: 'Heading',
-  paragraph: 'Paragraph',
+  text: 'שדה טקסט',
+  email: 'אימייל',
+  number: 'מספר',
+  phone: 'טלפון',
+  textarea: 'טקסט ארוך',
+  select: 'רשימה נפתחת',
+  checkbox: 'תיבת סימון',
+  radio: 'בחירה אחת',
+  date: 'תאריך',
+  file: 'העלאת קובץ',
+  heading: 'כותרת',
+  paragraph: 'פסקה',
 }
 
 export function FieldLibrary() {
   const { addField } = useFormBuilder()
 
   return (
-    <aside className="w-64 border-r border-border bg-card flex flex-col h-full">
+    <aside className="w-64 border-l border-border bg-card flex flex-col h-full">
       <div className="p-4 border-b border-border">
-        <h2 className="text-sm font-semibold text-foreground">Form Elements</h2>
-        <p className="text-xs text-muted-foreground mt-1">Click to add fields</p>
+        <h2 className="text-sm font-semibold text-foreground">רכיבי טופס</h2>
+        <p className="text-xs text-muted-foreground mt-1">לחצו כדי להוסיף שדות</p>
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {Object.entries(FIELD_CATEGORIES).map(([category, types]) => (
@@ -71,7 +71,7 @@ export function FieldLibrary() {
                     key={type}
                     onClick={() => addField(type as FieldType)}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-md text-left',
+                      'flex items-center gap-3 px-3 py-2.5 rounded-md text-right',
                       'bg-background border border-border/50',
                       'hover:border-primary/30 hover:bg-accent/50',
                       'transition-all duration-150 group'

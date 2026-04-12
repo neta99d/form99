@@ -5,7 +5,7 @@ import { useFormBuilder } from '@/lib/form-builder-store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileText, ArrowRight } from 'lucide-react'
+import { FileText, ArrowLeft } from 'lucide-react'
 
 export function OnboardingScreen() {
   const { setUserInfo } = useFormBuilder()
@@ -19,11 +19,11 @@ export function OnboardingScreen() {
     const newErrors: { businessName?: string; fullName?: string } = {}
     
     if (!businessName.trim()) {
-      newErrors.businessName = 'Business name is required'
+      newErrors.businessName = 'יש להזין שם עסק'
     }
     
     if (!fullName.trim()) {
-      newErrors.fullName = 'Full name is required'
+      newErrors.fullName = 'יש להזין שם מלא'
     }
     
     if (Object.keys(newErrors).length > 0) {
@@ -45,21 +45,21 @@ export function OnboardingScreen() {
             <FileText className="size-8" />
           </div>
           <h1 className="text-2xl font-semibold text-foreground mb-2">
-            Welcome to Form Builder
+            ברוכים הבאים לבונה הטפסים
           </h1>
           <p className="text-muted-foreground">
-            Let&apos;s get started by setting up your account details.
+            נתחיל בהגדרת פרטי החשבון שלכם.
           </p>
         </div>
         
         <div className="bg-card rounded-xl border border-border shadow-sm p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="businessName">Business Name</Label>
+              <Label htmlFor="businessName">שם העסק</Label>
               <Input
                 id="businessName"
                 type="text"
-                placeholder="Enter your business name"
+                placeholder="הזינו את שם העסק"
                 value={businessName}
                 onChange={e => {
                   setBusinessName(e.target.value)
@@ -75,11 +75,11 @@ export function OnboardingScreen() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName">שם מלא</Label>
               <Input
                 id="fullName"
                 type="text"
-                placeholder="Enter your full name"
+                placeholder="הזינו את שמכם המלא"
                 value={fullName}
                 onChange={e => {
                   setFullName(e.target.value)
@@ -95,14 +95,14 @@ export function OnboardingScreen() {
             </div>
             
             <Button type="submit" className="w-full">
-              Continue to Form Builder
-              <ArrowRight className="size-4 ml-2" />
+              המשך לבונה הטפסים
+              <ArrowLeft className="size-4 mr-2" />
             </Button>
           </form>
         </div>
         
         <p className="text-center text-xs text-muted-foreground mt-6">
-          These details will be used to personalize your form building experience.
+          הפרטים האלו ישמשו להתאמת חוויית בניית הטפסים עבורכם.
         </p>
       </div>
     </div>

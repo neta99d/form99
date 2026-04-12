@@ -71,11 +71,11 @@ function clearPersistedState() {
 
 const initialFormConfig: FormConfig = {
   id: 'form_1',
-  title: 'Contact Form',
-  description: 'Fill out the form below and we will get back to you.',
+  title: 'טופס יצירת קשר',
+  description: 'מלאו את הפרטים בטופס ונחזור אליכם בהקדם.',
   fields: [],
-  submitButtonText: 'Submit',
-  direction: 'ltr',
+  submitButtonText: 'שליחה',
+  direction: 'rtl',
 }
 
 export function FormBuilderProvider({ children }: { children: ReactNode }) {
@@ -201,7 +201,7 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
       const newField: FormField = {
         ...field,
         id: `field_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-        label: `${field.label} (Copy)`,
+        label: `${field.label} (עותק)`,
         options: field.options?.map(o => ({
           ...o,
           id: `opt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,

@@ -50,7 +50,7 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
         return (
           <Select disabled={!isPreview}>
             <SelectTrigger className="w-full pointer-events-auto">
-              <SelectValue placeholder="Select an option..." />
+              <SelectValue placeholder="בחרו אפשרות..." />
             </SelectTrigger>
             <SelectContent>
               {field.options?.map(option => (
@@ -115,11 +115,11 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
         }
         return (
           <HeadingTag className={cn(headingClasses[HeadingTag], 'text-foreground')}>
-            {field.content || 'Heading'}
+            {field.content || 'כותרת'}
           </HeadingTag>
         )
       case 'paragraph':
-        return <p className="text-sm text-muted-foreground">{field.content || 'Paragraph text'}</p>
+        return <p className="text-sm text-muted-foreground">{field.content || 'טקסט פסקה'}</p>
       default:
         return null
     }
@@ -154,7 +154,7 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
         {showLabel && (
           <label className="text-sm font-medium text-foreground">
             {field.label}
-            {field.required && <span className="text-destructive ml-1">*</span>}
+            {field.required && <span className="text-destructive mr-1">*</span>}
           </label>
         )}
         {renderFieldInput()}
@@ -259,8 +259,8 @@ export function FormCanvas() {
               {formConfig.fields.length === 0 ? (
                 <div className="py-16 px-8 text-center border-2 border-dashed border-border rounded-lg">
                   <div className="text-muted-foreground">
-                    <p className="text-sm font-medium">No fields yet</p>
-                    <p className="text-xs mt-1">Add fields from the left panel to get started</p>
+                    <p className="text-sm font-medium">עדיין אין שדות</p>
+                    <p className="text-xs mt-1">הוסיפו שדות מהחלונית הימנית כדי להתחיל</p>
                   </div>
                 </div>
               ) : (
