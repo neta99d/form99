@@ -57,7 +57,7 @@ export function FieldLibrary() {
         <h2 className="text-sm font-semibold text-foreground">רכיבי טופס</h2>
         <p className="text-xs text-muted-foreground mt-1">לחצו כדי להוסיף שדות</p>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="scrollbar-right flex-1 overflow-y-auto p-3">
         {Object.entries(FIELD_CATEGORIES).map(([category, types]) => (
           <div key={category} className="mb-5">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-1">

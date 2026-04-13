@@ -232,7 +232,7 @@ export function BuilderHeader() {
                 )}
               </Button>
             </div>
-            <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-border bg-secondary/30">
+            <div className="scrollbar-right-ltr-content flex-1 min-h-0 overflow-auto rounded-lg border border-border bg-secondary/30">
               <pre className="p-4 text-xs font-mono text-foreground whitespace-pre-wrap break-all">
                 {generatedHTML}
               </pre>

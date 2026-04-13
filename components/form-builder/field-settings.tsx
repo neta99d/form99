@@ -302,7 +302,7 @@ export function FieldSettings() {
           {selectedField ? 'הגדרות שדה' : 'הגדרות טופס'}
         </h2>
       </div>
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="scrollbar-right flex-1 overflow-y-auto p-4">
         {selectedField ? (
           <FieldSettingsForm field={selectedField} />
         ) : (

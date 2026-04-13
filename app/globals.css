@@ -127,3 +127,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .scrollbar-right {
+    direction: ltr;
+  }
+
+  .scrollbar-right > * {
+    direction: rtl;
+  }
+
+  .scrollbar-right-ltr-content {
+    direction: ltr;
+  }
+
+  .scrollbar-right-ltr-content > * {
+    direction: ltr;
+  }
+}

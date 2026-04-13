@@ -227,7 +227,7 @@ export function FormCanvas() {
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
-      <div className="flex-1 overflow-auto p-6">
+      <div className="scrollbar-right flex-1 overflow-auto p-6">
         <div
           className={cn(
             'mx-auto transition-all duration-300',
