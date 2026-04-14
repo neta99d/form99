@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
-import { type FormField, type FormConfig, createField, type FieldType, type FormDirection, type UserInfo } from './form-builder-types'
+import { type FormField, type FormConfig, createField, type FieldType, type FormDirection, type UserInfo, sanitizeFieldVisibilityRules } from './form-builder-types'
 
 interface FormBuilderState {
   formConfig: FormConfig
@@ -91,7 +91,10 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const persisted = loadPersistedState()
     if (persisted) {
-      setFormConfig(persisted.formConfig)
+      setFormConfig({
+        ...persisted.formConfig,
+        fields: sanitizeFieldVisibilityRules(persisted.formConfig.fields),
+      })
       setUserInfoState(persisted.userInfo)
       setIsOnboarded(persisted.isOnboarded)
     }
@@ -135,7 +138,7 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
   const removeField = useCallback((id: string) => {
     setFormConfig(prev => ({
       ...prev,
-      fields: prev.fields.filter(f => f.id !== id),
+      fields: sanitizeFieldVisibilityRules(prev.fields.filter(f => f.id !== id)),
     }))
     setSelectedFieldId(prev => (prev === id ? null : prev))
   }, [])
@@ -152,7 +155,7 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
       const newFields = [...prev.fields]
       const [movedField] = newFields.splice(fromIndex, 1)
       newFields.splice(toIndex, 0, movedField)
-      return { ...prev, fields: newFields }
+      return { ...prev, fields: sanitizeFieldVisibilityRules(newFields) }
     })
   }, [])
 
@@ -209,7 +212,7 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
       }
       const newFields = [...prev.fields]
       newFields.splice(fieldIndex + 1, 0, newField)
-      return { ...prev, fields: newFields }
+      return { ...prev, fields: sanitizeFieldVisibilityRules(newFields) }
     })
   }, [])
 

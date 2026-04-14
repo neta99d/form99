@@ -1,7 +1,14 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useFormBuilder } from '@/lib/form-builder-store'
-import { type FormField } from '@/lib/form-builder-types'
+import {
+  type FormAnswers,
+  type FormField,
+  getConditionOperatorLabel,
+  getConditionalValueOptions,
+  isFieldVisible,
+} from '@/lib/form-builder-types'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -9,7 +16,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { GripVertical, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react'
 
-function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isSelected: boolean; isPreview: boolean }) {
+function FieldRenderer({
+  field,
+  isSelected,
+  isPreview,
+  answerValue,
+  onAnswerChange,
+  conditionSummary,
+}: {
+  field: FormField
+  isSelected: boolean
+  isPreview: boolean
+  answerValue: FormAnswers[string]
+  onAnswerChange: (value: FormAnswers[string]) => void
+  conditionSummary?: string
+}) {
   const { selectField, removeField, duplicateField, moveField, formConfig } = useFormBuilder()
   
   const fieldIndex = formConfig.fields.findIndex(f => f.id === field.id)
@@ -33,6 +54,8 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
           <Input
             type={field.type === 'phone' ? 'tel' : field.type}
             placeholder={field.placeholder}
+            value={typeof answerValue === 'string' ? answerValue : ''}
+            onChange={e => onAnswerChange(e.target.value)}
             disabled={!isPreview}
             className="pointer-events-auto"
           />
@@ -42,13 +65,19 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
           <Textarea
             placeholder={field.placeholder}
             rows={field.rows || 4}
+            value={typeof answerValue === 'string' ? answerValue : ''}
+            onChange={e => onAnswerChange(e.target.value)}
             disabled={!isPreview}
             className="pointer-events-auto"
           />
         )
       case 'select':
         return (
-          <Select disabled={!isPreview}>
+          <Select
+            disabled={!isPreview}
+            value={typeof answerValue === 'string' ? answerValue : ''}
+            onValueChange={value => onAnswerChange(value)}
+          >
             <SelectTrigger className="w-full pointer-events-auto">
               <SelectValue placeholder="בחרו אפשרות..." />
             </SelectTrigger>
@@ -67,6 +96,8 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
             <input
               type="checkbox"
               id={field.id}
+              checked={!!answerValue}
+              onChange={e => onAnswerChange(e.target.checked)}
               disabled={!isPreview}
               className="size-4 rounded border-input accent-primary pointer-events-auto"
             />
@@ -85,6 +116,8 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
                   name={field.id}
                   id={option.id}
                   value={option.value}
+                  checked={answerValue === option.value}
+                  onChange={e => onAnswerChange(e.target.value)}
                   disabled={!isPreview}
                   className="size-4 accent-primary pointer-events-auto"
                 />
@@ -161,6 +194,9 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
         {field.helperText && (
           <p className="text-xs text-muted-foreground">{field.helperText}</p>
         )}
+        {!isPreview && conditionSummary && (
+          <p className="text-xs text-primary/80">{conditionSummary}</p>
+        )}
       </div>
 
       {!isPreview && (
@@ -224,6 +260,55 @@ function FieldRenderer({ field, isSelected, isPreview }: { field: FormField; isS
 
 export function FormCanvas() {
   const { formConfig, selectedFieldId, selectField, previewMode, previewDevice } = useFormBuilder()
+  const [answers, setAnswers] = useState<FormAnswers>({})
+
+  useEffect(() => {
+    setAnswers(prevAnswers => {
+      const validFieldIds = new Set(formConfig.fields.map(field => field.id))
+      return Object.fromEntries(
+        Object.entries(prevAnswers).filter(([fieldId]) => validFieldIds.has(fieldId))
+      )
+    })
+  }, [formConfig.fields])
+
+  const visibleFieldIds = new Set<string>()
+  const activeAnswers: FormAnswers = {}
+
+  for (const field of formConfig.fields) {
+    const isVisible = !previewMode || isFieldVisible(field, activeAnswers)
+    if (isVisible) {
+      visibleFieldIds.add(field.id)
+      activeAnswers[field.id] = answers[field.id]
+    }
+  }
+
+  const visibleFields = previewMode
+    ? formConfig.fields.filter(field => visibleFieldIds.has(field.id))
+    : formConfig.fields
+
+  const updateAnswer = (fieldId: string, value: FormAnswers[string]) => {
+    setAnswers(prevAnswers => ({
+      ...prevAnswers,
+      [fieldId]: value,
+    }))
+  }
+
+  const getConditionSummary = (field: FormField) => {
+    if (!field.visibleWhen) {
+      return undefined
+    }
+
+    const sourceField = formConfig.fields.find(candidate => candidate.id === field.visibleWhen?.sourceFieldId)
+    if (!sourceField) {
+      return 'תצוגה חכמה: תנאי לא זמין'
+    }
+
+    const optionLabel = getConditionalValueOptions(sourceField).find(
+      option => option.value === field.visibleWhen?.value
+    )?.label
+
+    return `מוצג כאשר "${sourceField.label}" ${getConditionOperatorLabel(field.visibleWhen.operator)} "${optionLabel ?? field.visibleWhen.value}"`
+  }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
@@ -264,12 +349,15 @@ export function FormCanvas() {
                   </div>
                 </div>
               ) : (
-                formConfig.fields.map(field => (
+                visibleFields.map(field => (
                   <FieldRenderer
                     key={field.id}
                     field={field}
                     isSelected={selectedFieldId === field.id}
                     isPreview={previewMode}
+                    answerValue={answers[field.id]}
+                    onAnswerChange={value => updateAnswer(field.id, value)}
+                    conditionSummary={getConditionSummary(field)}
                   />
                 ))
               )}

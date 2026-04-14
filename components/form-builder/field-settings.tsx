@@ -1,7 +1,13 @@
 'use client'
 
 import { useFormBuilder } from '@/lib/form-builder-store'
-import { type FormField, type SelectOption } from '@/lib/form-builder-types'
+import {
+  type FormField,
+  type SelectOption,
+  createDefaultVisibilityCondition,
+  getConditionalSourceFields,
+  getConditionalValueOptions,
+} from '@/lib/form-builder-types'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -78,7 +84,7 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 }
 
 function FieldSettingsForm({ field }: { field: FormField }) {
-  const { updateField } = useFormBuilder()
+  const { formConfig, updateField } = useFormBuilder()
 
   const handleUpdate = (updates: Partial<FormField>) => {
     updateField(field.id, updates)
@@ -87,6 +93,23 @@ function FieldSettingsForm({ field }: { field: FormField }) {
   const isInputField = ['text', 'email', 'number', 'phone', 'textarea', 'date', 'file'].includes(field.type)
   const hasOptions = ['select', 'radio'].includes(field.type)
   const isLayoutElement = ['heading', 'paragraph'].includes(field.type)
+  const conditionalSourceFields = getConditionalSourceFields(formConfig.fields, field.id)
+  const selectedSourceField = conditionalSourceFields.find(candidate => candidate.id === field.visibleWhen?.sourceFieldId)
+  const sourceValueOptions = selectedSourceField ? getConditionalValueOptions(selectedSourceField) : []
+  const canAddCondition = conditionalSourceFields.length > 0
+
+  const updateVisibilityCondition = (updates: Partial<NonNullable<FormField['visibleWhen']>>) => {
+    if (!field.visibleWhen) {
+      return
+    }
+
+    handleUpdate({
+      visibleWhen: {
+        ...field.visibleWhen,
+        ...updates,
+      },
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -182,6 +205,124 @@ function FieldSettingsForm({ field }: { field: FormField }) {
           />
         </SettingsSection>
       )}
+
+      <SettingsSection title="תצוגה חכמה">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-1">
+              <Label htmlFor="conditionalVisibility" className="cursor-pointer">הצגה לפי תשובה</Label>
+              <p className="text-xs text-muted-foreground">
+                הציגו את השדה רק כששדה קודם עומד בתנאי שבחרתם.
+              </p>
+            </div>
+            <Switch
+              id="conditionalVisibility"
+              checked={!!field.visibleWhen}
+              disabled={!canAddCondition}
+              onCheckedChange={checked => {
+                if (!checked) {
+                  handleUpdate({ visibleWhen: undefined })
+                  return
+                }
+
+                const defaultSourceField = conditionalSourceFields[0]
+                if (!defaultSourceField) {
+                  return
+                }
+
+                handleUpdate({ visibleWhen: createDefaultVisibilityCondition(defaultSourceField) })
+              }}
+            />
+          </div>
+
+          {!canAddCondition && (
+            <div className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+              הוסיפו מעל השדה הזה שאלה עם תשובה כדי להפעיל תצוגה חכמה.
+            </div>
+          )}
+
+          {field.visibleWhen && canAddCondition && (
+            <div className="space-y-3 rounded-lg border border-border bg-secondary/30 p-3">
+              <div className="space-y-2">
+                <Label htmlFor="visibilitySource">כאשר התשובה של</Label>
+                <Select
+                  value={field.visibleWhen.sourceFieldId}
+                  onValueChange={value => {
+                    const nextSourceField = conditionalSourceFields.find(candidate => candidate.id === value)
+                    if (!nextSourceField) {
+                      return
+                    }
+
+                    handleUpdate({ visibleWhen: createDefaultVisibilityCondition(nextSourceField) })
+                  }}
+                >
+                  <SelectTrigger id="visibilitySource" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {conditionalSourceFields.map(candidate => (
+                      <SelectItem key={candidate.id} value={candidate.id}>
+                        {candidate.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="visibilityOperator">תנאי</Label>
+                <Select
+                  value={field.visibleWhen.operator}
+                  onValueChange={value => updateVisibilityCondition({ operator: value as 'equals' | 'not_equals' })}
+                >
+                  <SelectTrigger id="visibilityOperator" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="equals">שווה ל</SelectItem>
+                    <SelectItem value="not_equals">לא שווה ל</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {sourceValueOptions.length > 0 ? (
+                <div className="space-y-2">
+                  <Label htmlFor="visibilityValue">ערך</Label>
+                  <Select
+                    value={field.visibleWhen.value}
+                    onValueChange={value => updateVisibilityCondition({ value })}
+                  >
+                    <SelectTrigger id="visibilityValue" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sourceValueOptions.map(option => (
+                        <SelectItem key={option.id} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="visibilityValue">ערך</Label>
+                  <Input
+                    id="visibilityValue"
+                    value={field.visibleWhen.value}
+                    onChange={e => updateVisibilityCondition({ value: e.target.value })}
+                    placeholder="למשל: כן"
+                  />
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                מתאים במיוחד לזרימות כמו "אם המשתמש ענה כן, הראו את השדה הזה".
+              </p>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
 
       {/* Validation Settings */}
       {!isLayoutElement && (

@@ -18,6 +18,14 @@ export interface SelectOption {
   value: string
 }
 
+export type VisibilityConditionOperator = 'equals' | 'not_equals'
+
+export interface VisibilityCondition {
+  sourceFieldId: string
+  operator: VisibilityConditionOperator
+  value: string
+}
+
 export interface FormField {
   id: string
   type: FieldType
@@ -36,6 +44,7 @@ export interface FormField {
   rows?: number
   headingLevel?: 'h1' | 'h2' | 'h3' | 'h4'
   content?: string
+  visibleWhen?: VisibilityCondition
 }
 
 export type FormDirection = 'ltr' | 'rtl'
@@ -53,6 +62,21 @@ export interface UserInfo {
   businessName: string
   fullName: string
 }
+
+export type FormAnswerValue = string | boolean | null | undefined
+export type FormAnswers = Record<string, FormAnswerValue>
+
+const CONDITIONAL_SOURCE_FIELD_TYPES: FieldType[] = [
+  'text',
+  'email',
+  'number',
+  'phone',
+  'textarea',
+  'select',
+  'checkbox',
+  'radio',
+  'date',
+]
 
 export const DEFAULT_FIELD_CONFIGS: Record<FieldType, Partial<FormField>> = {
   text: { label: 'שדה טקסט', placeholder: 'הקלידו טקסט...', required: false },
@@ -76,6 +100,88 @@ export const FIELD_CATEGORIES = {
   'רכיבי פריסה': ['heading', 'paragraph'],
 } as const
 
+export function isConditionalSourceField(field: FormField) {
+  return CONDITIONAL_SOURCE_FIELD_TYPES.includes(field.type)
+}
+
+export function getConditionOperatorLabel(operator: VisibilityConditionOperator) {
+  return operator === 'equals' ? 'שווה ל' : 'לא שווה ל'
+}
+
+export function normalizeAnswerValue(value: FormAnswerValue) {
+  if (typeof value === 'boolean') {
+    return value ? 'true' : 'false'
+  }
+
+  return value == null ? '' : String(value)
+}
+
+export function getConditionalValueOptions(field: FormField): SelectOption[] {
+  if (field.type === 'checkbox') {
+    return [
+      { id: `${field.id}_yes`, label: 'כן', value: 'true' },
+      { id: `${field.id}_no`, label: 'לא', value: 'false' },
+    ]
+  }
+
+  if (field.type === 'select' || field.type === 'radio') {
+    return field.options ?? []
+  }
+
+  return []
+}
+
+export function createDefaultVisibilityCondition(sourceField: FormField): VisibilityCondition {
+  const firstOption = getConditionalValueOptions(sourceField)[0]
+
+  return {
+    sourceFieldId: sourceField.id,
+    operator: 'equals',
+    value: firstOption?.value ?? '',
+  }
+}
+
+export function getConditionalSourceFields(fields: FormField[], fieldId: string) {
+  const currentFieldIndex = fields.findIndex(field => field.id === fieldId)
+  if (currentFieldIndex === -1) {
+    return []
+  }
+
+  return fields.slice(0, currentFieldIndex).filter(isConditionalSourceField)
+}
+
+export function doesFieldMatchCondition(condition: VisibilityCondition | undefined, answers: FormAnswers) {
+  if (!condition) {
+    return true
+  }
+
+  const currentValue = normalizeAnswerValue(answers[condition.sourceFieldId])
+  return condition.operator === 'equals'
+    ? currentValue === condition.value
+    : currentValue !== condition.value
+}
+
+export function isFieldVisible(field: FormField, answers: FormAnswers) {
+  return doesFieldMatchCondition(field.visibleWhen, answers)
+}
+
+export function sanitizeFieldVisibilityRules(fields: FormField[]) {
+  return fields.map((field, index) => {
+    if (!field.visibleWhen) {
+      return field
+    }
+
+    const sourceFieldIndex = fields.findIndex(candidate => candidate.id === field.visibleWhen?.sourceFieldId)
+    const sourceField = sourceFieldIndex >= 0 ? fields[sourceFieldIndex] : null
+
+    if (!sourceField || sourceFieldIndex >= index || !isConditionalSourceField(sourceField)) {
+      return { ...field, visibleWhen: undefined }
+    }
+
+    return field
+  })
+}
+
 export function createField(type: FieldType): FormField {
   const config = DEFAULT_FIELD_CONFIGS[type]
   return {
@@ -96,10 +202,22 @@ export function createField(type: FieldType): FormField {
     rows: config.rows,
     headingLevel: config.headingLevel,
     content: config.content,
+    visibleWhen: undefined,
   }
 }
 
 export function generateFormHTML(config: FormConfig): string {
+  const escapeAttribute = (value: string) =>
+    value.replaceAll('&', '&amp;').replaceAll('"', '&quot;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+
+  const getVisibilityDataAttributes = (field: FormField) => {
+    if (!field.visibleWhen) {
+      return ''
+    }
+
+    return ` data-condition-source="${escapeAttribute(field.visibleWhen.sourceFieldId)}" data-condition-operator="${escapeAttribute(field.visibleWhen.operator)}" data-condition-value="${escapeAttribute(field.visibleWhen.value)}"`
+  }
+
   const styles = `
 <style>
   .form-container {
@@ -180,6 +298,9 @@ export function generateFormHTML(config: FormConfig): string {
     margin-bottom: 1rem;
     line-height: 1.5;
   }
+  .is-hidden {
+    display: none !important;
+  }
   .form-submit {
     width: 100%;
     padding: 0.75rem 1.5rem;
@@ -203,6 +324,7 @@ export function generateFormHTML(config: FormConfig): string {
   for (const field of config.fields) {
     const requiredMark = field.required ? '<span class="required">*</span>' : ''
     const helperHTML = field.helperText ? `<div class="form-helper">${field.helperText}</div>` : ''
+    const visibilityAttributes = getVisibilityDataAttributes(field)
     
     switch (field.type) {
       case 'text':
@@ -211,7 +333,7 @@ export function generateFormHTML(config: FormConfig): string {
       case 'phone':
       case 'date':
         fieldsHTML += `
-  <div class="form-group">
+  <div class="form-group"${visibilityAttributes}>
     <label class="form-label">${field.label}${requiredMark}</label>
     <input type="${field.type === 'phone' ? 'tel' : field.type}" class="form-input" name="${field.id}" placeholder="${field.placeholder || ''}"${field.required ? ' required' : ''}${field.minLength ? ` minlength="${field.minLength}"` : ''}${field.maxLength ? ` maxlength="${field.maxLength}"` : ''}${field.min !== undefined ? ` min="${field.min}"` : ''}${field.max !== undefined ? ` max="${field.max}"` : ''}${field.pattern ? ` pattern="${field.pattern}"` : ''} />
     ${helperHTML}
@@ -219,7 +341,7 @@ export function generateFormHTML(config: FormConfig): string {
         break
       case 'textarea':
         fieldsHTML += `
-  <div class="form-group">
+  <div class="form-group"${visibilityAttributes}>
     <label class="form-label">${field.label}${requiredMark}</label>
     <textarea class="form-textarea" name="${field.id}" placeholder="${field.placeholder || ''}" rows="${field.rows || 4}"${field.required ? ' required' : ''}${field.minLength ? ` minlength="${field.minLength}"` : ''}${field.maxLength ? ` maxlength="${field.maxLength}"` : ''}></textarea>
     ${helperHTML}
@@ -228,7 +350,7 @@ export function generateFormHTML(config: FormConfig): string {
       case 'select':
         const optionsHTML = field.options?.map(o => `<option value="${o.value}">${o.label}</option>`).join('\n      ') || ''
         fieldsHTML += `
-  <div class="form-group">
+  <div class="form-group"${visibilityAttributes}>
     <label class="form-label">${field.label}${requiredMark}</label>
     <select class="form-select" name="${field.id}"${field.required ? ' required' : ''}>
       <option value="">בחרו אפשרות...</option>
@@ -239,7 +361,7 @@ export function generateFormHTML(config: FormConfig): string {
         break
       case 'checkbox':
         fieldsHTML += `
-  <div class="form-group">
+  <div class="form-group"${visibilityAttributes}>
     <div class="form-checkbox-item">
       <input type="checkbox" class="form-checkbox" name="${field.id}" id="${field.id}"${field.required ? ' required' : ''} />
       <label for="${field.id}">${field.label}${requiredMark}</label>
@@ -254,7 +376,7 @@ export function generateFormHTML(config: FormConfig): string {
         <label for="${o.id}">${o.label}</label>
       </div>`).join('') || ''
         fieldsHTML += `
-  <div class="form-group">
+  <div class="form-group"${visibilityAttributes}>
     <label class="form-label">${field.label}${requiredMark}</label>
     <div class="form-radio-group">${radioOptionsHTML}
     </div>
@@ -263,7 +385,7 @@ export function generateFormHTML(config: FormConfig): string {
         break
       case 'file':
         fieldsHTML += `
-  <div class="form-group">
+  <div class="form-group"${visibilityAttributes}>
     <label class="form-label">${field.label}${requiredMark}</label>
     <input type="file" class="form-input" name="${field.id}"${field.accept ? ` accept="${field.accept}"` : ''}${field.multiple ? ' multiple' : ''}${field.required ? ' required' : ''} />
     ${helperHTML}
@@ -272,19 +394,79 @@ export function generateFormHTML(config: FormConfig): string {
       case 'heading':
         const HeadingTag = field.headingLevel || 'h2'
         fieldsHTML += `
-  <div class="form-heading">
+  <div class="form-heading"${visibilityAttributes}>
     <${HeadingTag}>${field.content || 'כותרת'}</${HeadingTag}>
   </div>`
         break
       case 'paragraph':
         fieldsHTML += `
-  <p class="form-paragraph">${field.content || ''}</p>`
+  <div class="form-paragraph"${visibilityAttributes}>${field.content || ''}</div>`
         break
     }
   }
 
   const langAttr = config.direction === 'rtl' ? 'he' : 'en'
   const dirAttr = config.direction
+  const behaviorScript = `
+<script>
+  (() => {
+    const form = document.querySelector('form');
+    if (!form) return;
+
+    const conditionalBlocks = Array.from(form.querySelectorAll('[data-condition-source]'));
+    if (conditionalBlocks.length === 0) return;
+
+    const getFieldValue = (fieldId) => {
+      const controls = Array.from(form.querySelectorAll(\`[name="\${fieldId}"]\`)).filter(control => !control.disabled);
+      if (controls.length === 0) return '';
+
+      const firstControl = controls[0];
+      if (firstControl.type === 'radio') {
+        const checkedControl = controls.find(control => control.checked);
+        return checkedControl ? checkedControl.value : '';
+      }
+
+      if (firstControl.type === 'checkbox') {
+        return firstControl.checked ? 'true' : 'false';
+      }
+
+      return firstControl.value ?? '';
+    };
+
+    const setBlockVisibility = (block, isVisible) => {
+      block.classList.toggle('is-hidden', !isVisible);
+      block.hidden = !isVisible;
+
+      const controls = Array.from(block.querySelectorAll('input, select, textarea'));
+      controls.forEach(control => {
+        if (!control.dataset.originalRequired) {
+          control.dataset.originalRequired = control.required ? 'true' : 'false';
+        }
+
+        control.disabled = !isVisible;
+        control.required = isVisible && control.dataset.originalRequired === 'true';
+      });
+    };
+
+    const updateVisibility = () => {
+      conditionalBlocks.forEach(block => {
+        const sourceFieldId = block.dataset.conditionSource;
+        const operator = block.dataset.conditionOperator;
+        const expectedValue = block.dataset.conditionValue ?? '';
+        const currentValue = sourceFieldId ? getFieldValue(sourceFieldId) : '';
+        const isVisible = operator === 'not_equals'
+          ? currentValue !== expectedValue
+          : currentValue === expectedValue;
+
+        setBlockVisibility(block, isVisible);
+      });
+    };
+
+    form.addEventListener('input', updateVisibility);
+    form.addEventListener('change', updateVisibility);
+    updateVisibility();
+  })();
+</script>`
 
   return `<!DOCTYPE html>
 <html lang="${langAttr}" dir="${dirAttr}">
@@ -303,6 +485,7 @@ export function generateFormHTML(config: FormConfig): string {
       <button type="submit" class="form-submit">${config.submitButtonText}</button>
     </form>
   </div>
+  ${behaviorScript}
 </body>
 </html>`
 }
