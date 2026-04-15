@@ -144,4 +144,34 @@
   .scrollbar-right-ltr-content > * {
     direction: ltr;
   }
+
+  .rtl-date-input {
+    text-align: right;
+    direction: rtl;
+  }
+
+  .rtl-date-input::-webkit-date-and-time-value {
+    text-align: right;
+  }
+
+  .rtl-date-input::-webkit-datetime-edit {
+    text-align: right;
+  }
+
+  .rtl-date-input::-webkit-datetime-edit-fields-wrapper {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .rtl-date-input::-webkit-datetime-edit-text,
+  .rtl-date-input::-webkit-datetime-edit-day-field,
+  .rtl-date-input::-webkit-datetime-edit-month-field,
+  .rtl-date-input::-webkit-datetime-edit-year-field {
+    text-align: right;
+  }
+
+  .rtl-date-input::-webkit-calendar-picker-indicator {
+    margin-left: 0;
+    margin-right: auto;
+  }
 }

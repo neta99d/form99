@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { format, parseISO, isValid } from 'date-fns'
+import { enUS, he } from 'date-fns/locale'
 import { useFormBuilder } from '@/lib/form-builder-store'
 import {
   type FormAnswers,
@@ -14,7 +16,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { GripVertical, Trash2, Copy, ChevronUp, ChevronDown } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { GripVertical, Trash2, Copy, ChevronUp, ChevronDown, CalendarIcon } from 'lucide-react'
 
 function FieldRenderer({
   field,
@@ -32,6 +36,8 @@ function FieldRenderer({
   conditionSummary?: string
 }) {
   const { selectField, removeField, duplicateField, moveField, formConfig } = useFormBuilder()
+  const isRtl = formConfig.direction === 'rtl'
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
   
   const fieldIndex = formConfig.fields.findIndex(f => f.id === field.id)
   const canMoveUp = fieldIndex > 0
@@ -44,12 +50,16 @@ function FieldRenderer({
   }
 
   const renderFieldInput = () => {
+    const inputClassName = cn(
+      'pointer-events-auto',
+      isRtl && 'text-right placeholder:text-right [direction:rtl]'
+    )
+
     switch (field.type) {
       case 'text':
       case 'email':
       case 'number':
       case 'phone':
-      case 'date':
         return (
           <Input
             type={field.type === 'phone' ? 'tel' : field.type}
@@ -57,9 +67,63 @@ function FieldRenderer({
             value={typeof answerValue === 'string' ? answerValue : ''}
             onChange={e => onAnswerChange(e.target.value)}
             disabled={!isPreview}
-            className="pointer-events-auto"
+            className={inputClassName}
           />
         )
+      case 'date': {
+        const parsedDate =
+          typeof answerValue === 'string' && answerValue
+            ? parseISO(answerValue)
+            : null
+        const selectedDate = parsedDate && isValid(parsedDate) ? parsedDate : undefined
+        const displayValue = selectedDate
+          ? format(selectedDate, 'dd/MM/yyyy')
+          : field.placeholder || 'בחרו תאריך'
+
+        return (
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!isPreview}
+                dir={formConfig.direction}
+                className={cn(
+                  'h-9 w-full px-3 py-2 font-normal',
+                  isRtl ? 'flex-row-reverse justify-start' : 'justify-start',
+                  !selectedDate && 'text-muted-foreground'
+                )}
+              >
+                <span className={cn('min-w-0 flex-1', isRtl ? 'text-right' : 'text-left')}>
+                  {displayValue}
+                </span>
+                <CalendarIcon
+                  className={cn(
+                    'pointer-events-none size-4 shrink-0 opacity-70',
+                    isRtl ? 'ml-0 mr-2' : 'ml-2 mr-0'
+                  )}
+                />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-0"
+              align={isRtl ? 'end' : 'start'}
+              dir={formConfig.direction}
+            >
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={date => {
+                  onAnswerChange(date ? format(date, 'yyyy-MM-dd') : '')
+                  setDatePickerOpen(false)
+                }}
+                locale={isRtl ? he : enUS}
+                dir={formConfig.direction}
+              />
+            </PopoverContent>
+          </Popover>
+        )
+      }
       case 'textarea':
         return (
           <Textarea
@@ -68,22 +132,23 @@ function FieldRenderer({
             value={typeof answerValue === 'string' ? answerValue : ''}
             onChange={e => onAnswerChange(e.target.value)}
             disabled={!isPreview}
-            className="pointer-events-auto"
+            className={inputClassName}
           />
         )
       case 'select':
         return (
           <Select
+            dir={formConfig.direction}
             disabled={!isPreview}
             value={typeof answerValue === 'string' ? answerValue : ''}
             onValueChange={value => onAnswerChange(value)}
           >
-            <SelectTrigger className="w-full pointer-events-auto">
+            <SelectTrigger className={cn('w-full pointer-events-auto', isRtl && 'text-right')}>
               <SelectValue placeholder="בחרו אפשרות..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={cn(isRtl && 'text-right')}>
               {field.options?.map(option => (
-                <SelectItem key={option.id} value={option.value}>
+                <SelectItem key={option.id} value={option.value} className={cn(isRtl && 'text-right')}>
                   {option.label}
                 </SelectItem>
               ))}
@@ -185,14 +250,14 @@ function FieldRenderer({
 
       <div className="space-y-2">
         {showLabel && (
-          <label className="text-sm font-medium text-foreground">
+          <label className={cn('text-sm font-medium text-foreground', isRtl && 'text-right')}>
             {field.label}
             {field.required && <span className="text-destructive mr-1">*</span>}
           </label>
         )}
         {renderFieldInput()}
         {field.helperText && (
-          <p className="text-xs text-muted-foreground">{field.helperText}</p>
+          <p className={cn('text-xs text-muted-foreground', isRtl && 'text-right')}>{field.helperText}</p>
         )}
         {!isPreview && conditionSummary && (
           <p className="text-xs text-primary/80">{conditionSummary}</p>
