@@ -18,13 +18,25 @@ export interface SelectOption {
   value: string
 }
 
-export type VisibilityConditionOperator = 'equals' | 'not_equals'
+export type VisibilityConditionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'starts_with'
+  | 'not_starts_with'
+  | 'contains'
+  | 'not_contains'
 
 export interface VisibilityCondition {
   sourceFieldId: string
   operator: VisibilityConditionOperator
   value: string
 }
+
+export interface VisibilityRule {
+  conditions: VisibilityCondition[]
+}
+
+export type FieldVisibility = VisibilityRule | VisibilityCondition
 
 export interface FormField {
   id: string
@@ -44,7 +56,7 @@ export interface FormField {
   rows?: number
   headingLevel?: 'h1' | 'h2' | 'h3' | 'h4'
   content?: string
-  visibleWhen?: VisibilityCondition
+  visibleWhen?: FieldVisibility
 }
 
 export type FormDirection = 'ltr' | 'rtl'
@@ -105,7 +117,21 @@ export function isConditionalSourceField(field: FormField) {
 }
 
 export function getConditionOperatorLabel(operator: VisibilityConditionOperator) {
-  return operator === 'equals' ? 'שווה ל' : 'לא שווה ל'
+  switch (operator) {
+    case 'not_equals':
+      return 'לא שווה ל'
+    case 'starts_with':
+      return 'מתחיל ב'
+    case 'not_starts_with':
+      return 'לא מתחיל ב'
+    case 'contains':
+      return 'מכיל'
+    case 'not_contains':
+      return 'לא מכיל'
+    case 'equals':
+    default:
+      return 'שווה ל'
+  }
 }
 
 export function normalizeAnswerValue(value: FormAnswerValue) {
@@ -141,6 +167,24 @@ export function createDefaultVisibilityCondition(sourceField: FormField): Visibi
   }
 }
 
+export function createDefaultVisibilityRule(sourceField: FormField): VisibilityRule {
+  return {
+    conditions: [createDefaultVisibilityCondition(sourceField)],
+  }
+}
+
+export function getVisibilityConditions(visibleWhen: FieldVisibility | undefined): VisibilityCondition[] {
+  if (!visibleWhen) {
+    return []
+  }
+
+  if ('conditions' in visibleWhen) {
+    return visibleWhen.conditions
+  }
+
+  return [visibleWhen]
+}
+
 export function getConditionalSourceFields(fields: FormField[], fieldId: string) {
   const currentFieldIndex = fields.findIndex(field => field.id === fieldId)
   if (currentFieldIndex === -1) {
@@ -150,19 +194,38 @@ export function getConditionalSourceFields(fields: FormField[], fieldId: string)
   return fields.slice(0, currentFieldIndex).filter(isConditionalSourceField)
 }
 
-export function doesFieldMatchCondition(condition: VisibilityCondition | undefined, answers: FormAnswers) {
-  if (!condition) {
+export function doesFieldMatchCondition(condition: VisibilityCondition, answers: FormAnswers) {
+  const currentValue = normalizeAnswerValue(answers[condition.sourceFieldId])
+
+  switch (condition.operator) {
+    case 'not_equals':
+      return currentValue !== condition.value
+    case 'starts_with':
+      return currentValue.startsWith(condition.value)
+    case 'not_starts_with':
+      return !currentValue.startsWith(condition.value)
+    case 'contains':
+      return currentValue.includes(condition.value)
+    case 'not_contains':
+      return !currentValue.includes(condition.value)
+    case 'equals':
+    default:
+      return currentValue === condition.value
+  }
+}
+
+export function doesFieldMatchVisibilityRule(visibleWhen: FieldVisibility | undefined, answers: FormAnswers) {
+  const conditions = getVisibilityConditions(visibleWhen)
+
+  if (conditions.length === 0) {
     return true
   }
 
-  const currentValue = normalizeAnswerValue(answers[condition.sourceFieldId])
-  return condition.operator === 'equals'
-    ? currentValue === condition.value
-    : currentValue !== condition.value
+  return conditions.every(condition => doesFieldMatchCondition(condition, answers))
 }
 
 export function isFieldVisible(field: FormField, answers: FormAnswers) {
-  return doesFieldMatchCondition(field.visibleWhen, answers)
+  return doesFieldMatchVisibilityRule(field.visibleWhen, answers)
 }
 
 export function sanitizeFieldVisibilityRules(fields: FormField[]) {
@@ -171,14 +234,18 @@ export function sanitizeFieldVisibilityRules(fields: FormField[]) {
       return field
     }
 
-    const sourceFieldIndex = fields.findIndex(candidate => candidate.id === field.visibleWhen?.sourceFieldId)
-    const sourceField = sourceFieldIndex >= 0 ? fields[sourceFieldIndex] : null
+    const validConditions = getVisibilityConditions(field.visibleWhen).filter(condition => {
+      const sourceFieldIndex = fields.findIndex(candidate => candidate.id === condition.sourceFieldId)
+      const sourceField = sourceFieldIndex >= 0 ? fields[sourceFieldIndex] : null
 
-    if (!sourceField || sourceFieldIndex >= index || !isConditionalSourceField(sourceField)) {
+      return !!sourceField && sourceFieldIndex < index && isConditionalSourceField(sourceField)
+    })
+
+    if (validConditions.length === 0) {
       return { ...field, visibleWhen: undefined }
     }
 
-    return field
+    return { ...field, visibleWhen: { conditions: validConditions } }
   })
 }
 
@@ -215,7 +282,12 @@ export function generateFormHTML(config: FormConfig): string {
       return ''
     }
 
-    return ` data-condition-source="${escapeAttribute(field.visibleWhen.sourceFieldId)}" data-condition-operator="${escapeAttribute(field.visibleWhen.operator)}" data-condition-value="${escapeAttribute(field.visibleWhen.value)}"`
+    const conditions = getVisibilityConditions(field.visibleWhen)
+    if (conditions.length === 0) {
+      return ''
+    }
+
+    return ` data-conditions="${escapeAttribute(JSON.stringify(conditions))}"`
   }
 
   const styles = `
@@ -413,7 +485,7 @@ export function generateFormHTML(config: FormConfig): string {
     const form = document.querySelector('form');
     if (!form) return;
 
-    const conditionalBlocks = Array.from(form.querySelectorAll('[data-condition-source]'));
+    const conditionalBlocks = Array.from(form.querySelectorAll('[data-conditions]'));
     if (conditionalBlocks.length === 0) return;
 
     const getFieldValue = (fieldId) => {
@@ -450,13 +522,27 @@ export function generateFormHTML(config: FormConfig): string {
 
     const updateVisibility = () => {
       conditionalBlocks.forEach(block => {
-        const sourceFieldId = block.dataset.conditionSource;
-        const operator = block.dataset.conditionOperator;
-        const expectedValue = block.dataset.conditionValue ?? '';
-        const currentValue = sourceFieldId ? getFieldValue(sourceFieldId) : '';
-        const isVisible = operator === 'not_equals'
-          ? currentValue !== expectedValue
-          : currentValue === expectedValue;
+        const conditions = JSON.parse(block.dataset.conditions || '[]');
+        const isVisible = conditions.every(condition => {
+          const currentValue = condition.sourceFieldId ? getFieldValue(condition.sourceFieldId) : '';
+          const expectedValue = condition.value ?? '';
+
+          switch (condition.operator) {
+            case 'not_equals':
+              return currentValue !== expectedValue;
+            case 'starts_with':
+              return currentValue.startsWith(expectedValue);
+            case 'not_starts_with':
+              return !currentValue.startsWith(expectedValue);
+            case 'contains':
+              return currentValue.includes(expectedValue);
+            case 'not_contains':
+              return !currentValue.includes(expectedValue);
+            case 'equals':
+            default:
+              return currentValue === expectedValue;
+          }
+        });
 
         setBlockVisibility(block, isVisible);
       });

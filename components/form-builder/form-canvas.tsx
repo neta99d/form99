@@ -9,6 +9,7 @@ import {
   type FormField,
   getConditionOperatorLabel,
   getConditionalValueOptions,
+  getVisibilityConditions,
   isFieldVisible,
 } from '@/lib/form-builder-types'
 import { cn } from '@/lib/utils'
@@ -359,20 +360,29 @@ export function FormCanvas() {
   }
 
   const getConditionSummary = (field: FormField) => {
-    if (!field.visibleWhen) {
+    const conditions = getVisibilityConditions(field.visibleWhen)
+    if (conditions.length === 0) {
       return undefined
     }
 
-    const sourceField = formConfig.fields.find(candidate => candidate.id === field.visibleWhen?.sourceFieldId)
-    if (!sourceField) {
+    const conditionSummaries = conditions.map(condition => {
+      const sourceField = formConfig.fields.find(candidate => candidate.id === condition.sourceFieldId)
+      if (!sourceField) {
+        return null
+      }
+
+      const optionLabel = getConditionalValueOptions(sourceField).find(
+        option => option.value === condition.value
+      )?.label
+
+      return `"${sourceField.label}" ${getConditionOperatorLabel(condition.operator)} "${optionLabel ?? condition.value}"`
+    }).filter(Boolean)
+
+    if (conditionSummaries.length === 0) {
       return 'תצוגה חכמה: תנאי לא זמין'
     }
 
-    const optionLabel = getConditionalValueOptions(sourceField).find(
-      option => option.value === field.visibleWhen?.value
-    )?.label
-
-    return `מוצג כאשר "${sourceField.label}" ${getConditionOperatorLabel(field.visibleWhen.operator)} "${optionLabel ?? field.visibleWhen.value}"`
+    return `מוצג כאשר ${conditionSummaries.join(' וגם ')}`
   }
 
   return (

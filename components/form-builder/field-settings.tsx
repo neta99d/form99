@@ -4,9 +4,13 @@ import { useFormBuilder } from '@/lib/form-builder-store'
 import {
   type FormField,
   type SelectOption,
+  type VisibilityCondition,
+  type VisibilityConditionOperator,
   createDefaultVisibilityCondition,
+  createDefaultVisibilityRule,
   getConditionalSourceFields,
   getConditionalValueOptions,
+  getVisibilityConditions,
 } from '@/lib/form-builder-types'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -94,21 +98,39 @@ function FieldSettingsForm({ field }: { field: FormField }) {
   const hasOptions = ['select', 'radio'].includes(field.type)
   const isLayoutElement = ['heading', 'paragraph'].includes(field.type)
   const conditionalSourceFields = getConditionalSourceFields(formConfig.fields, field.id)
-  const selectedSourceField = conditionalSourceFields.find(candidate => candidate.id === field.visibleWhen?.sourceFieldId)
-  const sourceValueOptions = selectedSourceField ? getConditionalValueOptions(selectedSourceField) : []
+  const visibilityConditions = getVisibilityConditions(field.visibleWhen)
   const canAddCondition = conditionalSourceFields.length > 0
 
-  const updateVisibilityCondition = (updates: Partial<NonNullable<FormField['visibleWhen']>>) => {
-    if (!field.visibleWhen) {
+  const updateVisibilityConditions = (conditions: VisibilityCondition[]) => {
+    handleUpdate({ visibleWhen: conditions.length > 0 ? { conditions } : undefined })
+  }
+
+  const updateVisibilityCondition = (index: number, updates: Partial<VisibilityCondition>) => {
+    if (visibilityConditions.length === 0) {
       return
     }
 
-    handleUpdate({
-      visibleWhen: {
-        ...field.visibleWhen,
-        ...updates,
-      },
-    })
+    updateVisibilityConditions(
+      visibilityConditions.map((condition, conditionIndex) =>
+        conditionIndex === index ? { ...condition, ...updates } : condition
+      )
+    )
+  }
+
+  const addVisibilityCondition = () => {
+    const defaultSourceField = conditionalSourceFields[0]
+    if (!defaultSourceField) {
+      return
+    }
+
+    updateVisibilityConditions([
+      ...visibilityConditions,
+      createDefaultVisibilityCondition(defaultSourceField),
+    ])
+  }
+
+  const removeVisibilityCondition = (index: number) => {
+    updateVisibilityConditions(visibilityConditions.filter((_, conditionIndex) => conditionIndex !== index))
   }
 
   return (
@@ -230,7 +252,7 @@ function FieldSettingsForm({ field }: { field: FormField }) {
                   return
                 }
 
-                handleUpdate({ visibleWhen: createDefaultVisibilityCondition(defaultSourceField) })
+                handleUpdate({ visibleWhen: createDefaultVisibilityRule(defaultSourceField) })
               }}
             />
           </div>
@@ -243,82 +265,121 @@ function FieldSettingsForm({ field }: { field: FormField }) {
 
           {field.visibleWhen && canAddCondition && (
             <div className="space-y-3 rounded-lg border border-border bg-secondary/30 p-3">
-              <div className="space-y-2">
-                <Label htmlFor="visibilitySource">כאשר התשובה של</Label>
-                <Select
-                  value={field.visibleWhen.sourceFieldId}
-                  onValueChange={value => {
-                    const nextSourceField = conditionalSourceFields.find(candidate => candidate.id === value)
-                    if (!nextSourceField) {
-                      return
-                    }
-
-                    handleUpdate({ visibleWhen: createDefaultVisibilityCondition(nextSourceField) })
-                  }}
-                >
-                  <SelectTrigger id="visibilitySource" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {conditionalSourceFields.map(candidate => (
-                      <SelectItem key={candidate.id} value={candidate.id}>
-                        {candidate.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="visibilityOperator">תנאי</Label>
-                <Select
-                  value={field.visibleWhen.operator}
-                  onValueChange={value => updateVisibilityCondition({ operator: value as 'equals' | 'not_equals' })}
-                >
-                  <SelectTrigger id="visibilityOperator" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="equals">שווה ל</SelectItem>
-                    <SelectItem value="not_equals">לא שווה ל</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {sourceValueOptions.length > 0 ? (
-                <div className="space-y-2">
-                  <Label htmlFor="visibilityValue">ערך</Label>
-                  <Select
-                    value={field.visibleWhen.value}
-                    onValueChange={value => updateVisibilityCondition({ value })}
-                  >
-                    <SelectTrigger id="visibilityValue" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sourceValueOptions.map(option => (
-                        <SelectItem key={option.id} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="visibilityValue">ערך</Label>
-                  <Input
-                    id="visibilityValue"
-                    value={field.visibleWhen.value}
-                    onChange={e => updateVisibilityCondition({ value: e.target.value })}
-                    placeholder="למשל: כן"
-                  />
-                </div>
-              )}
-
               <p className="text-xs text-muted-foreground">
-                מתאים במיוחד לזרימות כמו "אם המשתמש ענה כן, הראו את השדה הזה".
+                הוסיפו תנאים שכולם חייבים להתקיים כדי שהשדה יוצג.
               </p>
+
+              {visibilityConditions.map((condition, index) => {
+                const selectedSourceField = conditionalSourceFields.find(candidate => candidate.id === condition.sourceFieldId)
+                const sourceValueOptions = selectedSourceField ? getConditionalValueOptions(selectedSourceField) : []
+
+                return (
+                  <div key={index} className="space-y-3 rounded-md border border-border bg-card p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs text-muted-foreground">תנאי {index + 1}</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => removeVisibilityCondition(index)}
+                        disabled={visibilityConditions.length <= 1}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label="מחיקת תנאי"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`visibilitySource-${index}`}>כאשר התשובה של</Label>
+                      <Select
+                        value={condition.sourceFieldId}
+                        onValueChange={value => {
+                          const nextSourceField = conditionalSourceFields.find(candidate => candidate.id === value)
+                          if (!nextSourceField) {
+                            return
+                          }
+
+                          updateVisibilityCondition(index, createDefaultVisibilityCondition(nextSourceField))
+                        }}
+                      >
+                        <SelectTrigger id={`visibilitySource-${index}`} className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {conditionalSourceFields.map(candidate => (
+                            <SelectItem key={candidate.id} value={candidate.id}>
+                              {candidate.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`visibilityOperator-${index}`}>תנאי</Label>
+                      <Select
+                        value={condition.operator}
+                        onValueChange={value => updateVisibilityCondition(index, { operator: value as VisibilityConditionOperator })}
+                      >
+                        <SelectTrigger id={`visibilityOperator-${index}`} className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="equals">שווה ל</SelectItem>
+                          <SelectItem value="not_equals">לא שווה ל</SelectItem>
+                          <SelectItem value="starts_with">מתחיל ב</SelectItem>
+                          <SelectItem value="not_starts_with">לא מתחיל ב</SelectItem>
+                          <SelectItem value="contains">מכיל</SelectItem>
+                          <SelectItem value="not_contains">לא מכיל</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {sourceValueOptions.length > 0 ? (
+                      <div className="space-y-2">
+                        <Label htmlFor={`visibilityValue-${index}`}>ערך</Label>
+                        <Select
+                          value={condition.value}
+                          onValueChange={value => updateVisibilityCondition(index, { value })}
+                        >
+                          <SelectTrigger id={`visibilityValue-${index}`} className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sourceValueOptions.map(option => (
+                              <SelectItem key={option.id} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor={`visibilityValue-${index}`}>ערך</Label>
+                        <Input
+                          id={`visibilityValue-${index}`}
+                          value={condition.value}
+                          onChange={e => updateVisibilityCondition(index, { value: e.target.value })}
+                          placeholder="למשל: כן"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addVisibilityCondition}
+                className="w-full"
+              >
+                <Plus className="size-3.5 mr-1.5" />
+                הוספת תנאי
+              </Button>
             </div>
           )}
         </div>
