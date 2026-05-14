@@ -12,7 +12,6 @@ import {
   CheckSquare,
   Circle,
   Calendar,
-  Upload,
   Heading,
   FileText,
 } from 'lucide-react'
@@ -28,7 +27,6 @@ const FIELD_ICONS: Record<FieldType, React.ElementType> = {
   checkbox: CheckSquare,
   radio: Circle,
   date: Calendar,
-  file: Upload,
   heading: Heading,
   paragraph: FileText,
 }
@@ -43,7 +41,6 @@ const FIELD_LABELS: Record<FieldType, string> = {
   checkbox: 'תיבת סימון',
   radio: 'בחירה אחת',
   date: 'תאריך',
-  file: 'העלאת קובץ',
   heading: 'כותרת',
   paragraph: 'פסקה',
 }

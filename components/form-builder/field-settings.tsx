@@ -94,7 +94,7 @@ function FieldSettingsForm({ field }: { field: FormField }) {
     updateField(field.id, updates)
   }
 
-  const isInputField = ['text', 'email', 'number', 'phone', 'textarea', 'date', 'file'].includes(field.type)
+  const isInputField = ['text', 'email', 'number', 'phone', 'textarea', 'date'].includes(field.type)
   const hasOptions = ['select', 'radio'].includes(field.type)
   const isLayoutElement = ['heading', 'paragraph'].includes(field.type)
   const conditionalSourceFields = getConditionalSourceFields(formConfig.fields, field.id)
@@ -150,7 +150,7 @@ function FieldSettingsForm({ field }: { field: FormField }) {
             </div>
           )}
 
-          {isInputField && field.type !== 'file' && field.type !== 'date' && (
+          {isInputField && field.type !== 'date' && (
             <div className="space-y-2">
               <Label htmlFor="placeholder">טקסט בתוך השדה</Label>
               <Input
@@ -462,29 +462,6 @@ function FieldSettingsForm({ field }: { field: FormField }) {
                   />
                 </div>
               </div>
-            )}
-
-            {field.type === 'file' && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="accept">סוגי קבצים מותרים</Label>
-                  <Input
-                    id="accept"
-                    value={field.accept || ''}
-                    onChange={e => handleUpdate({ accept: e.target.value })}
-                    placeholder="למשל: image/*, .pdf, .doc"
-                  />
-                  <p className="text-xs text-muted-foreground">השאירו ריק כדי לאפשר את כל סוגי הקבצים</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="multiple" className="cursor-pointer">אפשר בחירת כמה קבצים</Label>
-                  <Switch
-                    id="multiple"
-                    checked={field.multiple || false}
-                    onCheckedChange={checked => handleUpdate({ multiple: checked })}
-                  />
-                </div>
-              </>
             )}
           </div>
         </SettingsSection>

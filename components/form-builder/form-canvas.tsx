@@ -194,16 +194,6 @@ function FieldRenderer({
             ))}
           </div>
         )
-      case 'file':
-        return (
-          <Input
-            type="file"
-            accept={field.accept}
-            multiple={field.multiple}
-            disabled={!isPreview}
-            className="pointer-events-auto"
-          />
-        )
       case 'heading':
         const HeadingTag = field.headingLevel || 'h2'
         const headingClasses = {

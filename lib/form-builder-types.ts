@@ -8,7 +8,6 @@ export type FieldType =
   | 'checkbox'
   | 'radio'
   | 'date'
-  | 'file'
   | 'heading'
   | 'paragraph'
 
@@ -51,8 +50,6 @@ export interface FormField {
   min?: number
   max?: number
   pattern?: string
-  accept?: string
-  multiple?: boolean
   rows?: number
   headingLevel?: 'h1' | 'h2' | 'h3' | 'h4'
   content?: string
@@ -100,7 +97,6 @@ export const DEFAULT_FIELD_CONFIGS: Record<FieldType, Partial<FormField>> = {
   checkbox: { label: 'תיבת סימון', required: false },
   radio: { label: 'בחירה אחת', required: false, options: [{ id: '1', label: 'אפשרות 1', value: 'choice1' }, { id: '2', label: 'אפשרות 2', value: 'choice2' }] },
   date: { label: 'תאריך', required: false },
-  file: { label: 'העלאת קובץ', required: false, accept: '*/*', multiple: false },
   heading: { label: 'כותרת', headingLevel: 'h2', content: 'כותרת מקטע' },
   paragraph: { label: 'פסקה', content: 'הוסיפו כאן תיאור או הנחיות.' },
 }
@@ -108,7 +104,7 @@ export const DEFAULT_FIELD_CONFIGS: Record<FieldType, Partial<FormField>> = {
 export const FIELD_CATEGORIES = {
   'שדות בסיסיים': ['text', 'email', 'number', 'phone', 'textarea'],
   'שדות בחירה': ['select', 'checkbox', 'radio'],
-  'שדות מיוחדים': ['date', 'file'],
+  'שדות מיוחדים': ['date'],
   'רכיבי פריסה': ['heading', 'paragraph'],
 } as const
 
@@ -264,8 +260,6 @@ export function createField(type: FieldType): FormField {
     min: config.min,
     max: config.max,
     pattern: config.pattern,
-    accept: config.accept,
-    multiple: config.multiple,
     rows: config.rows,
     headingLevel: config.headingLevel,
     content: config.content,
@@ -452,14 +446,6 @@ export function generateFormHTML(config: FormConfig): string {
     <label class="form-label">${field.label}${requiredMark}</label>
     <div class="form-radio-group">${radioOptionsHTML}
     </div>
-    ${helperHTML}
-  </div>`
-        break
-      case 'file':
-        fieldsHTML += `
-  <div class="form-group"${visibilityAttributes}>
-    <label class="form-label">${field.label}${requiredMark}</label>
-    <input type="file" class="form-input" name="${field.id}"${field.accept ? ` accept="${field.accept}"` : ''}${field.multiple ? ' multiple' : ''}${field.required ? ' required' : ''} />
     ${helperHTML}
   </div>`
         break
