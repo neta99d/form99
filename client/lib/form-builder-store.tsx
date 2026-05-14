@@ -31,6 +31,7 @@ type FormBuilderContextType = FormBuilderState & FormBuilderActions
 const FormBuilderContext = createContext<FormBuilderContextType | null>(null)
 
 const STORAGE_KEY = 'form-builder-state'
+const API_BASE_URL = process.env.NEXT_PUBLIC_FORM99_API_URL || 'http://localhost:8000'
 
 interface PersistedState {
   formConfig: FormConfig
@@ -57,6 +58,49 @@ function saveState(state: PersistedState) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   } catch {
     // Storage full or unavailable, ignore
+  }
+}
+
+async function loadServerState(): Promise<PersistedState | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/state`, {
+      method: 'GET',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as PersistedState | null
+  } catch {
+    return null
+  }
+}
+
+async function saveServerState(state: PersistedState) {
+  try {
+    await fetch(`${API_BASE_URL}/state`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(state),
+    })
+  } catch {
+    // Backend unavailable, localStorage remains the fallback.
+  }
+}
+
+async function clearServerState() {
+  try {
+    await fetch(`${API_BASE_URL}/state`, {
+      method: 'DELETE',
+    })
+  } catch {
+    // Backend unavailable, localStorage remains the fallback.
   }
 }
 
@@ -89,16 +133,38 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
   
   // Load persisted state on mount
   useEffect(() => {
-    const persisted = loadPersistedState()
-    if (persisted) {
-      setFormConfig({
-        ...persisted.formConfig,
-        fields: sanitizeFieldVisibilityRules(persisted.formConfig.fields),
-      })
-      setUserInfoState(persisted.userInfo)
-      setIsOnboarded(persisted.isOnboarded)
+    let isCancelled = false
+
+    const loadInitialState = async () => {
+      const persisted = (await loadServerState()) ?? loadPersistedState()
+
+      if (isCancelled) {
+        return
+      }
+
+      if (persisted) {
+        const sanitizedState = {
+          ...persisted,
+          formConfig: {
+            ...persisted.formConfig,
+            fields: sanitizeFieldVisibilityRules(persisted.formConfig.fields),
+          },
+        }
+
+        setFormConfig(sanitizedState.formConfig)
+        setUserInfoState(sanitizedState.userInfo)
+        setIsOnboarded(sanitizedState.isOnboarded)
+        saveState(sanitizedState)
+      }
+
+      setIsHydrated(true)
     }
-    setIsHydrated(true)
+
+    loadInitialState()
+
+    return () => {
+      isCancelled = true
+    }
   }, [])
   
   // Auto-save state on changes (debounced)
@@ -112,11 +178,14 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
     }
     
     saveTimeoutRef.current = setTimeout(() => {
-      saveState({
+      const state = {
         formConfig,
         userInfo,
         isOnboarded,
-      })
+      }
+
+      saveState(state)
+      void saveServerState(state)
     }, 300)
     
     return () => {
@@ -177,6 +246,7 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
 
   const resetBuilder = useCallback(() => {
     clearPersistedState()
+    void clearServerState()
     setFormConfig(initialFormConfig)
     setSelectedFieldId(null)
     setPreviewModeState(false)
