@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { useFormBuilder } from '@/lib/form-builder-store'
+import { useFormBuilder, API_BASE_URL } from '@/lib/form-builder-store'
 import { generateFormHTML } from '@/lib/form-builder-types'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,8 +22,8 @@ export function BuilderHeader() {
     previewDevice,
     setPreviewMode,
     setPreviewDevice,
-    userInfo,
     resetBuilder,
+    accountId,
   } = useFormBuilder()
 
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
@@ -39,27 +39,22 @@ export function BuilderHeader() {
   }
 
   const handleSend = async () => {
-    if (!userInfo) return
-    
     setSendStatus('loading')
     setSendMessage('')
-    
+
     try {
-      const html = generateFormHTML(formConfig)
-      const response = await fetch(
-        'https://builder4.99digital.co.il/4480/webhook/form',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            customerName: userInfo.fullName,
-            businessName: userInfo.businessName,
-            html: html,
-          }),
-        }
-      )
+      const response = await fetch(`${API_BASE_URL}/api/forms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account_id: accountId,
+          title: formConfig.title,
+          description: formConfig.description ?? null,
+          submit_button_text: formConfig.submitButtonText,
+          direction: formConfig.direction,
+          fields: formConfig.fields,
+        }),
+      })
 
       if (response.ok) {
         setSendStatus('success')

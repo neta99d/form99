@@ -1,0 +1,114 @@
+from __future__ import annotations
+
+import json
+import uuid
+
+import psycopg2.extensions
+import psycopg2.extras
+
+from models.form_model import FormCreate, FormUpdate
+
+
+def _cursor(conn: psycopg2.extensions.connection) -> psycopg2.extras.RealDictCursor:
+    return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+
+def _deserialize(row: dict) -> dict:
+    row = dict(row)
+    if isinstance(row.get("fields"), str):
+        row["fields"] = json.loads(row["fields"])
+    return row
+
+
+def create_form(conn: psycopg2.extensions.connection, data: FormCreate) -> dict:
+    with _cursor(conn) as cur:
+        cur.execute(
+            """
+            INSERT INTO forms
+                (account_id, title, description, submit_button_text, direction, fields)
+            VALUES
+                (%s, %s, %s, %s, %s, %s)
+            RETURNING *
+            """,
+            (
+                str(data.account_id),
+                data.title,
+                data.description,
+                data.submit_button_text,
+                data.direction,
+                json.dumps(data.fields),
+            ),
+        )
+        return _deserialize(cur.fetchone())
+
+
+def get_form(conn: psycopg2.extensions.connection, form_id: uuid.UUID) -> dict | None:
+    with _cursor(conn) as cur:
+        cur.execute("SELECT * FROM forms WHERE id = %s", (str(form_id),))
+        row = cur.fetchone()
+    return _deserialize(row) if row else None
+
+
+def update_form(
+    conn: psycopg2.extensions.connection, form_id: uuid.UUID, data: FormUpdate
+) -> dict | None:
+    updates: dict[str, object] = {
+        k: v for k, v in data.model_dump().items() if v is not None
+    }
+    if not updates:
+        return get_form(conn, form_id)
+
+    if "fields" in updates:
+        updates["fields"] = json.dumps(updates["fields"])
+
+    set_clause = ", ".join(f"{col} = %s" for col in updates) + ", updated_at = NOW()"
+    values = list(updates.values()) + [str(form_id)]
+
+    with _cursor(conn) as cur:
+        cur.execute(
+            f"UPDATE forms SET {set_clause} WHERE id = %s RETURNING *",  # noqa: S608
+            values,
+        )
+        row = cur.fetchone()
+    return _deserialize(row) if row else None
+
+
+def delete_form(conn: psycopg2.extensions.connection, form_id: uuid.UUID) -> bool:
+    with _cursor(conn) as cur:
+        cur.execute("DELETE FROM forms WHERE id = %s RETURNING id", (str(form_id),))
+        return cur.fetchone() is not None
+
+
+def get_account_forms(
+    conn: psycopg2.extensions.connection, account_id: uuid.UUID
+) -> list[dict]:
+    with _cursor(conn) as cur:
+        cur.execute(
+            """
+            SELECT id, account_id, title, updated_at
+            FROM forms
+            WHERE account_id = %s
+            ORDER BY updated_at DESC
+            """,
+            (str(account_id),),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def duplicate_form(
+    conn: psycopg2.extensions.connection, form_id: uuid.UUID
+) -> dict | None:
+    with _cursor(conn) as cur:
+        cur.execute(
+            """
+            INSERT INTO forms
+                (account_id, title, description, submit_button_text, direction, fields)
+            SELECT account_id, title, description, submit_button_text, direction, fields
+            FROM forms
+            WHERE id = %s
+            RETURNING *
+            """,
+            (str(form_id),),
+        )
+        row = cur.fetchone()
+    return _deserialize(row) if row else None

@@ -10,6 +10,7 @@ interface FormBuilderState {
   previewDevice: 'desktop' | 'mobile'
   userInfo: UserInfo | null
   isOnboarded: boolean
+  accountId: string
 }
 
 interface FormBuilderActions {
@@ -24,6 +25,7 @@ interface FormBuilderActions {
   duplicateField: (id: string) => void
   setUserInfo: (info: UserInfo) => void
   resetBuilder: () => void
+  accountId: string
 }
 
 type FormBuilderContextType = FormBuilderState & FormBuilderActions
@@ -31,7 +33,18 @@ type FormBuilderContextType = FormBuilderState & FormBuilderActions
 const FormBuilderContext = createContext<FormBuilderContextType | null>(null)
 
 const STORAGE_KEY = 'form-builder-state'
-const API_BASE_URL = process.env.NEXT_PUBLIC_FORM99_API_URL || 'http://localhost:8000'
+export const API_BASE_URL = process.env.NEXT_PUBLIC_FORM99_API_URL || 'http://localhost:8000'
+
+function getOrCreateAccountId(): string {
+  if (typeof window === 'undefined') return ''
+  const key = 'form-builder-account-id'
+  let id = localStorage.getItem(key)
+  if (!id) {
+    id = crypto.randomUUID()
+    localStorage.setItem(key, id)
+  }
+  return id
+}
 
 interface PersistedState {
   formConfig: FormConfig
@@ -124,6 +137,7 @@ const initialFormConfig: FormConfig = {
 
 export function FormBuilderProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false)
+  const [accountId] = useState(() => getOrCreateAccountId())
   const [formConfig, setFormConfig] = useState<FormConfig>(initialFormConfig)
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [previewMode, setPreviewModeState] = useState(false)
@@ -293,6 +307,7 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
     previewDevice,
     userInfo,
     isOnboarded,
+    accountId,
     addField,
     removeField,
     updateField,

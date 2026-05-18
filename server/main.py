@@ -6,8 +6,11 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
+load_dotenv()
 from pydantic import BaseModel, Field
 
 
@@ -33,7 +36,11 @@ class HealthResponse(BaseModel):
     database: str = Field(default="connected")
 
 
+from routes.forms import router as forms_router
+
 app = FastAPI(title="Form99 API")
+
+app.include_router(forms_router)
 
 app.add_middleware(
     CORSMiddleware,
