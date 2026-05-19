@@ -209,6 +209,65 @@ function FieldRenderer({
         )
       case 'paragraph':
         return <p className="text-sm text-muted-foreground">{field.content || 'טקסט פסקה'}</p>
+      case 'star_rating':
+        return (
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map(star => (
+              <button
+                key={star}
+                type="button"
+                onClick={() => isPreview && onAnswerChange(String(star))}
+                disabled={!isPreview}
+                className={cn(
+                  'text-2xl leading-none transition-colors pointer-events-auto',
+                  isPreview ? 'cursor-pointer' : 'cursor-default',
+                  Number(answerValue) >= star ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-300'
+                )}
+              >
+                ★
+              </button>
+            ))}
+          </div>
+        )
+      case 'slider': {
+        const sliderVal = typeof answerValue === 'string' && answerValue !== '' ? answerValue : String(field.min ?? 0)
+        return (
+          <div className="flex items-center gap-3 pointer-events-auto">
+            <input
+              type="range"
+              min={field.min ?? 0}
+              max={field.max ?? 100}
+              value={sliderVal}
+              onChange={e => onAnswerChange(e.target.value)}
+              disabled={!isPreview}
+              className="flex-1 accent-primary"
+            />
+            <span className="text-sm font-semibold min-w-8 text-center">{sliderVal}</span>
+          </div>
+        )
+      }
+      case 'number_rating':
+        return (
+          <div className="flex flex-wrap gap-1.5 pointer-events-auto">
+            {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => isPreview && onAnswerChange(String(n))}
+                disabled={!isPreview}
+                className={cn(
+                  'size-9 rounded-md border text-sm font-medium transition-colors',
+                  isPreview ? 'cursor-pointer' : 'cursor-default',
+                  String(answerValue) === String(n)
+                    ? 'bg-primary border-primary text-primary-foreground'
+                    : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                )}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+        )
       default:
         return null
     }

@@ -10,6 +10,9 @@ export type FieldType =
   | 'date'
   | 'heading'
   | 'paragraph'
+  | 'star_rating'
+  | 'slider'
+  | 'number_rating'
 
 export interface SelectOption {
   id: string
@@ -85,6 +88,9 @@ const CONDITIONAL_SOURCE_FIELD_TYPES: FieldType[] = [
   'checkbox',
   'radio',
   'date',
+  'star_rating',
+  'slider',
+  'number_rating',
 ]
 
 export const DEFAULT_FIELD_CONFIGS: Record<FieldType, Partial<FormField>> = {
@@ -99,12 +105,16 @@ export const DEFAULT_FIELD_CONFIGS: Record<FieldType, Partial<FormField>> = {
   date: { label: 'תאריך', required: false },
   heading: { label: 'כותרת', headingLevel: 'h2', content: 'כותרת מקטע' },
   paragraph: { label: 'פסקה', content: 'הוסיפו כאן תיאור או הנחיות.' },
+  star_rating: { label: 'כוכבים', required: false },
+  slider: { label: 'סליידר', min: 0, max: 100, required: false },
+  number_rating: { label: 'דירוג 1-10', required: false },
 }
 
 export const FIELD_CATEGORIES = {
   'שדות בסיסיים': ['text', 'email', 'number', 'phone', 'textarea'],
   'שדות בחירה': ['select', 'checkbox', 'radio'],
   'שדות מיוחדים': ['date'],
+  'דירוג': ['star_rating', 'slider', 'number_rating'],
   'רכיבי פריסה': ['heading', 'paragraph'],
 } as const
 
@@ -245,9 +255,15 @@ export function sanitizeFieldVisibilityRules(fields: FormField[]) {
   })
 }
 
+const FIELD_ID_PREFIXES: Partial<Record<FieldType, string>> = {
+  star_rating: 'stars',
+  number_rating: 'rating',
+}
+
 export function generateFieldId(type: FieldType, existingFields: FormField[]): string {
+  const prefix = FIELD_ID_PREFIXES[type] ?? type
   const count = existingFields.filter(f => f.type === type).length
-  return count === 0 ? type : `${type}${count}`
+  return count === 0 ? prefix : `${prefix}${count}`
 }
 
 export function createField(type: FieldType, existingFields: FormField[] = []): FormField {
@@ -388,6 +404,20 @@ export function generateFormHTML(config: FormConfig): string {
   .form-submit:hover {
     background: #4f46e5;
   }
+  .form-star-rating { display: inline-flex; flex-direction: row-reverse; gap: 0.25rem; }
+  .form-star-rating input[type="radio"] { display: none; }
+  .form-star-rating label { font-size: 1.75rem; color: #d1d5db; cursor: pointer; transition: color 0.15s; line-height: 1; }
+  .form-star-rating input:checked ~ label,
+  .form-star-rating label:hover,
+  .form-star-rating label:hover ~ label { color: #fbbf24; }
+  .form-slider-container { display: flex; align-items: center; gap: 1rem; }
+  .form-slider { flex: 1; accent-color: #6366f1; }
+  .form-slider-value { min-width: 2.5rem; text-align: center; font-size: 0.875rem; font-weight: 600; color: #1a1a2e; }
+  .form-number-rating { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .form-number-rating input[type="radio"] { display: none; }
+  .form-number-rating label { width: 2.25rem; height: 2.25rem; display: flex; align-items: center; justify-content: center; border: 1.5px solid #e2e8f0; border-radius: 0.375rem; cursor: pointer; font-size: 0.875rem; font-weight: 500; color: #64748b; transition: all 0.15s; }
+  .form-number-rating label:hover { border-color: #6366f1; color: #6366f1; }
+  .form-number-rating input:checked + label { background: #6366f1; border-color: #6366f1; color: white; }
 </style>`
 
   let fieldsHTML = ''
@@ -465,6 +495,44 @@ export function generateFormHTML(config: FormConfig): string {
         fieldsHTML += `
   <div class="form-paragraph"${visibilityAttributes}>${field.content || ''}</div>`
         break
+      case 'star_rating': {
+        const starsHTML = [5, 4, 3, 2, 1].map(i =>
+          `<input type="radio" name="${field.id}" id="${field.id}_s${i}" value="${i}"${field.required ? ' required' : ''} /><label for="${field.id}_s${i}" title="${i} כוכבים">★</label>`
+        ).join('')
+        fieldsHTML += `
+  <div class="form-group"${visibilityAttributes}>
+    <label class="form-label">${field.label}${requiredMark}</label>
+    <div class="form-star-rating">${starsHTML}</div>
+    ${helperHTML}
+  </div>`
+        break
+      }
+      case 'slider': {
+        const sliderMin = field.min ?? 0
+        const sliderMax = field.max ?? 100
+        fieldsHTML += `
+  <div class="form-group"${visibilityAttributes}>
+    <label class="form-label">${field.label}${requiredMark}</label>
+    <div class="form-slider-container">
+      <input type="range" class="form-slider" name="${field.id}" id="${field.id}" min="${sliderMin}" max="${sliderMax}" value="${sliderMin}" oninput="document.getElementById('${field.id}_val').textContent=this.value"${field.required ? ' required' : ''} />
+      <span class="form-slider-value" id="${field.id}_val">${sliderMin}</span>
+    </div>
+    ${helperHTML}
+  </div>`
+        break
+      }
+      case 'number_rating': {
+        const ratingHTML = Array.from({ length: 10 }, (_, i) => i + 1).map(i =>
+          `<input type="radio" name="${field.id}" id="${field.id}_n${i}" value="${i}"${field.required ? ' required' : ''} /><label for="${field.id}_n${i}">${i}</label>`
+        ).join('')
+        fieldsHTML += `
+  <div class="form-group"${visibilityAttributes}>
+    <label class="form-label">${field.label}${requiredMark}</label>
+    <div class="form-number-rating">${ratingHTML}</div>
+    ${helperHTML}
+  </div>`
+        break
+      }
     }
   }
 

@@ -481,7 +481,7 @@ function FieldSettingsForm({ field }: { field: FormField }) {
               </div>
             )}
 
-            {field.type === 'number' && (
+            {(field.type === 'number' || field.type === 'slider') && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="min">ערך מינימלי</Label>

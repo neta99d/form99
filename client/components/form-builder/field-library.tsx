@@ -14,6 +14,9 @@ import {
   Calendar,
   Heading,
   FileText,
+  Star,
+  SlidersHorizontal,
+  Gauge,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +32,9 @@ const FIELD_ICONS: Record<FieldType, React.ElementType> = {
   date: Calendar,
   heading: Heading,
   paragraph: FileText,
+  star_rating: Star,
+  slider: SlidersHorizontal,
+  number_rating: Gauge,
 }
 
 const FIELD_LABELS: Record<FieldType, string> = {
@@ -43,6 +49,9 @@ const FIELD_LABELS: Record<FieldType, string> = {
   date: 'תאריך',
   heading: 'כותרת',
   paragraph: 'פסקה',
+  star_rating: 'כוכבים',
+  slider: 'סליידר',
+  number_rating: 'דירוג 1-10',
 }
 
 export function FieldLibrary() {
