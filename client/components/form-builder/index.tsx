@@ -5,14 +5,15 @@ import { BuilderHeader } from './builder-header'
 import { FieldLibrary } from './field-library'
 import { FormCanvas } from './form-canvas'
 import { FieldSettings } from './field-settings'
-import { OnboardingScreen } from './onboarding-screen'
+
+export interface FormBuilderProps {
+  mode: 'create' | 'edit'
+  formId?: string
+  accountId: string
+}
 
 function FormBuilderContent() {
-  const { previewMode, isOnboarded, mode } = useFormBuilder()
-
-  if (!isOnboarded && !mode) {
-    return <OnboardingScreen />
-  }
+  const { previewMode } = useFormBuilder()
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -26,15 +27,9 @@ function FormBuilderContent() {
   )
 }
 
-export interface FormBuilderProps {
-  mode?: 'create' | 'edit'
-  formId?: string
-  accountId?: string
-}
-
-export function FormBuilder({ mode, formId, accountId }: FormBuilderProps = {}) {
+export function FormBuilder({ mode, formId, accountId }: FormBuilderProps) {
   return (
-    <FormBuilderProvider mode={mode} formId={formId} initialAccountId={accountId}>
+    <FormBuilderProvider mode={mode} formId={formId} accountId={accountId}>
       <FormBuilderContent />
     </FormBuilderProvider>
   )

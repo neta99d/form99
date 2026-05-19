@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Eye, X, Monitor, Smartphone, Code, Copy, Check, Send, Loader2, CheckCircle, XCircle, RotateCcw, ArrowRight, Save } from 'lucide-react'
+import { Eye, X, Monitor, Smartphone, Code, Copy, Check, Loader2, CheckCircle, XCircle, ArrowRight, Save, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function BuilderHeader() {
@@ -24,7 +24,6 @@ export function BuilderHeader() {
     previewDevice,
     setPreviewMode,
     setPreviewDevice,
-    resetBuilder,
     accountId,
     mode,
     formId,
@@ -36,15 +35,13 @@ export function BuilderHeader() {
   const [sendStatus, setSendStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
   const handleCopyHTML = async () => {
-    const html = generateFormHTML(formConfig)
-    await navigator.clipboard.writeText(html)
+    await navigator.clipboard.writeText(generateFormHTML(formConfig))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleSend = async () => {
+  const handleSave = async () => {
     setSendStatus('loading')
-
     try {
       if (mode === 'edit' && formId) {
         await updateForm(formId, {
@@ -55,48 +52,24 @@ export function BuilderHeader() {
           fields: formConfig.fields,
         })
         setSendStatus('success')
-      } else if (mode === 'create') {
+        setTimeout(() => setSendStatus('idle'), 3000)
+      } else {
+        // create mode
         const response = await fetch(`${API_BASE_URL}/api/forms`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formConfigToPayload(formConfig, accountId)),
         })
-        if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
+        if (!response.ok) throw new Error(`${response.status}`)
         const created = await response.json() as { id: string }
         setSendStatus('success')
-        setTimeout(() => {
-          router.push(`/forms/${created.id}/edit`)
-        }, 800)
-        return
-      } else {
-        // Legacy mode: POST and stay on page
-        const response = await fetch(`${API_BASE_URL}/api/forms`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            account_id: accountId,
-            title: formConfig.title,
-            description: formConfig.description ?? null,
-            submit_button_text: formConfig.submitButtonText,
-            direction: formConfig.direction,
-            fields: formConfig.fields,
-          }),
-        })
-        if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
-        setSendStatus('success')
+        setTimeout(() => router.push(`/forms/${created.id}/edit`), 800)
       }
-
-      setTimeout(() => setSendStatus('idle'), 3000)
     } catch {
       setSendStatus('error')
       setTimeout(() => setSendStatus('idle'), 5000)
     }
   }
-
-  const generatedHTML = generateFormHTML(formConfig)
-
-  const saveButtonLabel = mode === 'edit' || mode === 'create' ? 'שמירה' : 'שליחה'
-  const SaveIcon = mode === 'edit' || mode === 'create' ? Save : Send
 
   return (
     <>
@@ -119,7 +92,6 @@ export function BuilderHeader() {
         <div className="flex items-center gap-2">
           {previewMode ? (
             <>
-              {/* Device Toggle */}
               <div className="flex items-center bg-secondary rounded-lg p-1">
                 <button
                   onClick={() => setPreviewDevice('desktop')}
@@ -146,79 +118,45 @@ export function BuilderHeader() {
                   נייד
                 </button>
               </div>
-
-              <Button
-                variant="outline"
-                onClick={() => setPreviewMode(false)}
-                className="gap-1.5"
-              >
+              <Button variant="outline" onClick={() => setPreviewMode(false)} className="gap-1.5">
                 <X className="size-4" />
                 סגירת תצוגה
               </Button>
             </>
           ) : (
             <>
-              {mode ? (
-                <Button
-                  variant="ghost"
-                  onClick={() => router.push('/')}
-                  className="gap-1.5 text-muted-foreground"
-                >
-                  <ArrowRight className="size-4" />
-                  חזרה לרשימה
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  onClick={resetBuilder}
-                  className="gap-1.5 text-muted-foreground hover:text-destructive"
-                >
-                  <RotateCcw className="size-4" />
-                  איפוס
-                </Button>
-              )}
               <Button
-                variant="outline"
-                onClick={() => setPreviewMode(true)}
-                className="gap-1.5"
+                variant="ghost"
+                onClick={() => router.push('/')}
+                className="gap-1.5 text-muted-foreground"
               >
+                <ArrowRight className="size-4" />
+                חזרה לרשימה
+              </Button>
+              <Button variant="outline" onClick={() => setPreviewMode(true)} className="gap-1.5">
                 <Eye className="size-4" />
                 תצוגה מקדימה
               </Button>
-              <Button
-                onClick={() => setPublishDialogOpen(true)}
-                variant="outline"
-                className="gap-1.5"
-              >
+              <Button variant="outline" onClick={() => setPublishDialogOpen(true)} className="gap-1.5">
                 <Code className="size-4" />
                 HTML
               </Button>
               <Button
-                onClick={handleSend}
+                onClick={handleSave}
                 disabled={sendStatus === 'loading'}
-                variant={sendStatus === 'success' ? 'outline' : sendStatus === 'error' ? 'destructive' : 'default'}
+                variant={sendStatus === 'error' ? 'destructive' : 'default'}
                 className="gap-1.5"
               >
                 {sendStatus === 'loading' ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    {mode ? 'שומר...' : 'שולח...'}
-                  </>
+                  <><Loader2 className="size-4 animate-spin" />{mode === 'edit' ? 'שומר...' : 'יוצר...'}</>
                 ) : sendStatus === 'success' ? (
-                  <>
-                    <CheckCircle className="size-4 text-success" />
-                    {mode === 'create' ? 'נוצר!' : 'נשמר!'}
-                  </>
+                  <><CheckCircle className="size-4" />{mode === 'edit' ? 'נשמר!' : 'נוצר!'}</>
                 ) : sendStatus === 'error' ? (
-                  <>
-                    <XCircle className="size-4" />
-                    נכשל
-                  </>
+                  <><XCircle className="size-4" />נכשל</>
+                ) : mode === 'edit' ? (
+                  <><Save className="size-4" />שמירה</>
                 ) : (
-                  <>
-                    <SaveIcon className="size-4" />
-                    {saveButtonLabel}
-                  </>
+                  <><Send className="size-4" />יצירה</>
                 )}
               </Button>
             </>
@@ -226,7 +164,6 @@ export function BuilderHeader() {
         </div>
       </header>
 
-      {/* Publish Dialog */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
           <DialogHeader>
@@ -240,28 +177,17 @@ export function BuilderHeader() {
               <div className="text-sm text-muted-foreground">
                 {formConfig.fields.length} שדות הוגדרו
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyHTML}
-                className="gap-1.5"
-              >
+              <Button variant="outline" size="sm" onClick={handleCopyHTML} className="gap-1.5">
                 {copied ? (
-                  <>
-                    <Check className="size-4 text-success" />
-                    הועתק!
-                  </>
+                  <><Check className="size-4 text-success" />הועתק!</>
                 ) : (
-                  <>
-                    <Copy className="size-4" />
-                    העתקת HTML
-                  </>
+                  <><Copy className="size-4" />העתקת HTML</>
                 )}
               </Button>
             </div>
             <div className="scrollbar-right-ltr-content flex-1 min-h-0 overflow-auto rounded-lg border border-border bg-secondary/30">
               <pre className="p-4 text-xs font-mono text-foreground whitespace-pre-wrap break-all">
-                {generatedHTML}
+                {generateFormHTML(formConfig)}
               </pre>
             </div>
           </div>

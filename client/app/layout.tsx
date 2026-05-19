@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Open_Sans, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 const openSans = Open_Sans({
@@ -45,6 +46,7 @@ export default function RootLayout({
     <html lang="he" dir="rtl">
       <body className={`${openSans.variable} ${geistMono.variable} font-sans antialiased`}>
         {children}
+        <Toaster position="top-center" richColors />
         <Analytics />
       </body>
     </html>
