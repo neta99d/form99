@@ -245,10 +245,15 @@ export function sanitizeFieldVisibilityRules(fields: FormField[]) {
   })
 }
 
-export function createField(type: FieldType): FormField {
+export function generateFieldId(type: FieldType, existingFields: FormField[]): string {
+  const count = existingFields.filter(f => f.type === type).length
+  return count === 0 ? type : `${type}${count}`
+}
+
+export function createField(type: FieldType, existingFields: FormField[] = []): FormField {
   const config = DEFAULT_FIELD_CONFIGS[type]
   return {
-    id: `field_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    id: generateFieldId(type, existingFields),
     type,
     label: config.label || 'שדה חדש',
     placeholder: config.placeholder,

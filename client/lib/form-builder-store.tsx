@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { type FormField, type FormConfig, createField, type FieldType, sanitizeFieldVisibilityRules } from './form-builder-types'
+import { type FormField, type FormConfig, createField, generateFieldId, type FieldType, sanitizeFieldVisibilityRules } from './form-builder-types'
 import { getForm } from './forms-api'
 
 interface FormBuilderState {
@@ -78,9 +78,13 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
   }, [mode, formId])
 
   const addField = useCallback((type: FieldType) => {
-    const newField = createField(type)
-    setFormConfig(prev => ({ ...prev, fields: [...prev.fields, newField] }))
-    setSelectedFieldId(newField.id)
+    let newFieldId = ''
+    setFormConfig(prev => {
+      const newField = createField(type, prev.fields)
+      newFieldId = newField.id
+      return { ...prev, fields: [...prev.fields, newField] }
+    })
+    setSelectedFieldId(newFieldId)
   }, [])
 
   const removeField = useCallback((id: string) => {
@@ -132,7 +136,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
       const field = prev.fields[idx]
       const copy: FormField = {
         ...field,
-        id: `field_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        id: generateFieldId(field.type, prev.fields),
         label: `${field.label} (עותק)`,
         options: field.options?.map(o => ({
           ...o,
