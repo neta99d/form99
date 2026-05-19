@@ -55,7 +55,7 @@ def duplicate_form(form_id: uuid.UUID) -> FormResponse:
 
 
 @router.get("/accounts/{account_id}/forms", response_model=list[FormSummary])
-def get_account_forms(account_id: uuid.UUID) -> list[FormSummary]:
+def get_account_forms(account_id: str) -> list[FormSummary]:
     with get_db() as conn:
         rows = forms_controller.get_account_forms(conn, account_id)
     return [FormSummary(**row) for row in rows]

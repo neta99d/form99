@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS forms (
     id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    account_id       UUID        NOT NULL,
+    account_id       TEXT        NOT NULL,
     title            TEXT        NOT NULL,
     description      TEXT,
     submit_button_text TEXT      NOT NULL,

@@ -1,7 +1,8 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
-import { type FormField, type FormConfig, createField, type FieldType, type FormDirection, type UserInfo, sanitizeFieldVisibilityRules } from './form-builder-types'
+import { type FormField, type FormConfig, createField, type FieldType, type UserInfo, sanitizeFieldVisibilityRules } from './form-builder-types'
+import { getForm } from './forms-api'
 
 interface FormBuilderState {
   formConfig: FormConfig
@@ -11,6 +12,8 @@ interface FormBuilderState {
   userInfo: UserInfo | null
   isOnboarded: boolean
   accountId: string
+  mode?: 'create' | 'edit'
+  formId?: string
 }
 
 interface FormBuilderActions {
@@ -135,21 +138,57 @@ const initialFormConfig: FormConfig = {
   direction: 'rtl',
 }
 
-export function FormBuilderProvider({ children }: { children: ReactNode }) {
+interface FormBuilderProviderProps {
+  children: ReactNode
+  mode?: 'create' | 'edit'
+  formId?: string
+  initialAccountId?: string
+}
+
+export function FormBuilderProvider({ children, mode, formId, initialAccountId }: FormBuilderProviderProps) {
   const [isHydrated, setIsHydrated] = useState(false)
-  const [accountId] = useState(() => getOrCreateAccountId())
+  const [accountId] = useState(() => initialAccountId ?? getOrCreateAccountId())
   const [formConfig, setFormConfig] = useState<FormConfig>(initialFormConfig)
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [previewMode, setPreviewModeState] = useState(false)
   const [previewDevice, setPreviewDeviceState] = useState<'desktop' | 'mobile'>('desktop')
   const [userInfo, setUserInfoState] = useState<UserInfo | null>(null)
   const [isOnboarded, setIsOnboarded] = useState(false)
-  
-  // Load persisted state on mount
+
+  // Load state on mount — behavior depends on mode
   useEffect(() => {
     let isCancelled = false
 
     const loadInitialState = async () => {
+      if (mode === 'create') {
+        // Fresh form, skip loading
+        setIsOnboarded(true)
+        setIsHydrated(true)
+        return
+      }
+
+      if (mode === 'edit' && formId) {
+        // Load form from the forms API
+        try {
+          const form = await getForm(formId)
+          if (isCancelled) return
+          setFormConfig({
+            id: form.id,
+            title: form.title,
+            description: form.description ?? undefined,
+            fields: sanitizeFieldVisibilityRules(form.fields),
+            submitButtonText: form.submit_button_text,
+            direction: form.direction,
+          })
+        } catch {
+          // Form not found or server error — proceed with empty config
+        }
+        setIsOnboarded(true)
+        setIsHydrated(true)
+        return
+      }
+
+      // Legacy mode: load from /state or localStorage
       const persisted = (await loadServerState()) ?? loadPersistedState()
 
       if (isCancelled) {
@@ -174,23 +213,23 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
       setIsHydrated(true)
     }
 
-    loadInitialState()
+    void loadInitialState()
 
     return () => {
       isCancelled = true
     }
-  }, [])
-  
-  // Auto-save state on changes (debounced)
+  }, [mode, formId])
+
+  // Auto-save state on changes (debounced) — legacy mode only
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  
+
   useEffect(() => {
-    if (!isHydrated) return
-    
+    if (!isHydrated || mode !== undefined) return
+
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
-    
+
     saveTimeoutRef.current = setTimeout(() => {
       const state = {
         formConfig,
@@ -201,13 +240,13 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
       saveState(state)
       void saveServerState(state)
     }, 300)
-    
+
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [formConfig, userInfo, isOnboarded, isHydrated])
+  }, [formConfig, userInfo, isOnboarded, isHydrated, mode])
 
   const addField = useCallback((type: FieldType) => {
     const newField = createField(type)
@@ -308,6 +347,8 @@ export function FormBuilderProvider({ children }: { children: ReactNode }) {
     userInfo,
     isOnboarded,
     accountId,
+    mode,
+    formId,
     addField,
     removeField,
     updateField,

@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 
 class FormCreate(BaseModel):
-    account_id: uuid.UUID
+    account_id: str
     title: str
     description: str | None = None
     submit_button_text: str
@@ -26,7 +26,7 @@ class FormUpdate(BaseModel):
 
 class FormResponse(BaseModel):
     id: uuid.UUID
-    account_id: uuid.UUID
+    account_id: str
     title: str
     description: str | None
     submit_button_text: str
@@ -38,6 +38,6 @@ class FormResponse(BaseModel):
 
 class FormSummary(BaseModel):
     id: uuid.UUID
-    account_id: uuid.UUID
+    account_id: str
     title: str
     updated_at: datetime

@@ -8,9 +8,9 @@ import { FieldSettings } from './field-settings'
 import { OnboardingScreen } from './onboarding-screen'
 
 function FormBuilderContent() {
-  const { previewMode, isOnboarded } = useFormBuilder()
+  const { previewMode, isOnboarded, mode } = useFormBuilder()
 
-  if (!isOnboarded) {
+  if (!isOnboarded && !mode) {
     return <OnboardingScreen />
   }
 
@@ -26,9 +26,15 @@ function FormBuilderContent() {
   )
 }
 
-export function FormBuilder() {
+export interface FormBuilderProps {
+  mode?: 'create' | 'edit'
+  formId?: string
+  accountId?: string
+}
+
+export function FormBuilder({ mode, formId, accountId }: FormBuilderProps = {}) {
   return (
-    <FormBuilderProvider>
+    <FormBuilderProvider mode={mode} formId={formId} initialAccountId={accountId}>
       <FormBuilderContent />
     </FormBuilderProvider>
   )

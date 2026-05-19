@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { useFormBuilder, API_BASE_URL } from '@/lib/form-builder-store'
 import { generateFormHTML } from '@/lib/form-builder-types'
+import { formConfigToPayload, updateForm } from '@/lib/forms-api'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Eye, X, Monitor, Smartphone, Code, Copy, Check, Send, Loader2, CheckCircle, XCircle, RotateCcw } from 'lucide-react'
+import { Eye, X, Monitor, Smartphone, Code, Copy, Check, Send, Loader2, CheckCircle, XCircle, RotateCcw, ArrowRight, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function BuilderHeader() {
@@ -24,12 +26,14 @@ export function BuilderHeader() {
     setPreviewDevice,
     resetBuilder,
     accountId,
+    mode,
+    formId,
   } = useFormBuilder()
 
+  const router = useRouter()
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [sendStatus, setSendStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [sendMessage, setSendMessage] = useState('')
 
   const handleCopyHTML = async () => {
     const html = generateFormHTML(formConfig)
@@ -40,43 +44,59 @@ export function BuilderHeader() {
 
   const handleSend = async () => {
     setSendStatus('loading')
-    setSendMessage('')
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/forms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account_id: accountId,
+      if (mode === 'edit' && formId) {
+        await updateForm(formId, {
           title: formConfig.title,
           description: formConfig.description ?? null,
           submit_button_text: formConfig.submitButtonText,
           direction: formConfig.direction,
           fields: formConfig.fields,
-        }),
-      })
-
-      if (response.ok) {
+        })
         setSendStatus('success')
-        setSendMessage('הטופס נשלח בהצלחה!')
+      } else if (mode === 'create') {
+        const response = await fetch(`${API_BASE_URL}/api/forms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formConfigToPayload(formConfig, accountId)),
+        })
+        if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
+        const created = await response.json() as { id: string }
+        setSendStatus('success')
         setTimeout(() => {
-          setSendStatus('idle')
-          setSendMessage('')
-        }, 3000)
+          router.push(`/forms/${created.id}/edit`)
+        }, 800)
+        return
       } else {
-        throw new Error(`Request failed with status ${response.status}`)
+        // Legacy mode: POST and stay on page
+        const response = await fetch(`${API_BASE_URL}/api/forms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            account_id: accountId,
+            title: formConfig.title,
+            description: formConfig.description ?? null,
+            submit_button_text: formConfig.submitButtonText,
+            direction: formConfig.direction,
+            fields: formConfig.fields,
+          }),
+        })
+        if (!response.ok) throw new Error(`Request failed with status ${response.status}`)
+        setSendStatus('success')
       }
-    } catch (error) {
+
+      setTimeout(() => setSendStatus('idle'), 3000)
+    } catch {
       setSendStatus('error')
-      setSendMessage(error instanceof Error ? error.message : 'שליחת הטופס נכשלה')
-      setTimeout(() => {
-        setSendStatus('idle')
-        setSendMessage('')
-      }, 5000)
+      setTimeout(() => setSendStatus('idle'), 5000)
     }
   }
 
   const generatedHTML = generateFormHTML(formConfig)
+
+  const saveButtonLabel = mode === 'edit' || mode === 'create' ? 'שמירה' : 'שליחה'
+  const SaveIcon = mode === 'edit' || mode === 'create' ? Save : Send
 
   return (
     <>
@@ -138,14 +158,25 @@ export function BuilderHeader() {
             </>
           ) : (
             <>
-              <Button
-                variant="ghost"
-                onClick={resetBuilder}
-                className="gap-1.5 text-muted-foreground hover:text-destructive"
-              >
-                <RotateCcw className="size-4" />
-                איפוס
-              </Button>
+              {mode ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => router.push('/')}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  <ArrowRight className="size-4" />
+                  חזרה לרשימה
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  onClick={resetBuilder}
+                  className="gap-1.5 text-muted-foreground hover:text-destructive"
+                >
+                  <RotateCcw className="size-4" />
+                  איפוס
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={() => setPreviewMode(true)}
@@ -156,6 +187,7 @@ export function BuilderHeader() {
               </Button>
               <Button
                 onClick={() => setPublishDialogOpen(true)}
+                variant="outline"
                 className="gap-1.5"
               >
                 <Code className="size-4" />
@@ -170,12 +202,12 @@ export function BuilderHeader() {
                 {sendStatus === 'loading' ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />
-                    שולח...
+                    {mode ? 'שומר...' : 'שולח...'}
                   </>
                 ) : sendStatus === 'success' ? (
                   <>
                     <CheckCircle className="size-4 text-success" />
-                    נשלח!
+                    {mode === 'create' ? 'נוצר!' : 'נשמר!'}
                   </>
                 ) : sendStatus === 'error' ? (
                   <>
@@ -184,8 +216,8 @@ export function BuilderHeader() {
                   </>
                 ) : (
                   <>
-                    <Send className="size-4" />
-                    שליחה
+                    <SaveIcon className="size-4" />
+                    {saveButtonLabel}
                   </>
                 )}
               </Button>

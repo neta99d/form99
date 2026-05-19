@@ -31,7 +31,7 @@ def create_form(conn: psycopg2.extensions.connection, data: FormCreate) -> dict:
             RETURNING *
             """,
             (
-                str(data.account_id),
+                data.account_id,
                 data.title,
                 data.description,
                 data.submit_button_text,
@@ -80,7 +80,7 @@ def delete_form(conn: psycopg2.extensions.connection, form_id: uuid.UUID) -> boo
 
 
 def get_account_forms(
-    conn: psycopg2.extensions.connection, account_id: uuid.UUID
+    conn: psycopg2.extensions.connection, account_id: str
 ) -> list[dict]:
     with _cursor(conn) as cur:
         cur.execute(
