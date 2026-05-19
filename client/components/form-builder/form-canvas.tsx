@@ -19,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { GripVertical, Trash2, Copy, ChevronUp, ChevronDown, CalendarIcon } from 'lucide-react'
+import { Trash2, Copy, CalendarIcon } from 'lucide-react'
 
 function FieldRenderer({
   field,
@@ -28,6 +28,7 @@ function FieldRenderer({
   answerValue,
   onAnswerChange,
   conditionSummary,
+  isDragged,
 }: {
   field: FormField
   isSelected: boolean
@@ -35,14 +36,11 @@ function FieldRenderer({
   answerValue: FormAnswers[string]
   onAnswerChange: (value: FormAnswers[string]) => void
   conditionSummary?: string
+  isDragged?: boolean
 }) {
-  const { selectField, removeField, duplicateField, moveField, formConfig } = useFormBuilder()
+  const { selectField, removeField, duplicateField, formConfig } = useFormBuilder()
   const isRtl = formConfig.direction === 'rtl'
   const [datePickerOpen, setDatePickerOpen] = useState(false)
-  
-  const fieldIndex = formConfig.fields.findIndex(f => f.id === field.id)
-  const canMoveUp = fieldIndex > 0
-  const canMoveDown = fieldIndex < formConfig.fields.length - 1
 
   const handleClick = (e: React.MouseEvent) => {
     if (isPreview) return
@@ -279,25 +277,15 @@ function FieldRenderer({
     <div
       onClick={handleClick}
       className={cn(
-        'group relative rounded-lg border bg-card p-4 transition-all',
+        'group relative rounded-lg border bg-card p-4 transition-all select-none',
         isPreview
           ? 'border-transparent'
           : isSelected
             ? 'border-primary ring-2 ring-primary/20'
-            : 'border-border/50 hover:border-primary/30 cursor-pointer'
+            : 'border-border/50 hover:border-primary/30',
+        isDragged && 'opacity-50 shadow-lg'
       )}
     >
-      {!isPreview && (
-        <div
-          className={cn(
-            'absolute -left-0.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity',
-            isSelected && 'opacity-100'
-          )}
-        >
-          <GripVertical className="size-4 text-muted-foreground" />
-        </div>
-      )}
-
       <div className="space-y-2">
         {showLabel && (
           <label className={cn('text-sm font-medium text-foreground', isRtl && 'text-right')}>
@@ -326,30 +314,6 @@ function FieldRenderer({
             size="icon-sm"
             onClick={e => {
               e.stopPropagation()
-              if (canMoveUp) moveField(fieldIndex, fieldIndex - 1)
-            }}
-            disabled={!canMoveUp}
-            className="size-6 bg-card"
-          >
-            <ChevronUp className="size-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            onClick={e => {
-              e.stopPropagation()
-              if (canMoveDown) moveField(fieldIndex, fieldIndex + 1)
-            }}
-            disabled={!canMoveDown}
-            className="size-6 bg-card"
-          >
-            <ChevronDown className="size-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            onClick={e => {
-              e.stopPropagation()
               duplicateField(field.id)
             }}
             className="size-6 bg-card"
@@ -373,9 +337,24 @@ function FieldRenderer({
   )
 }
 
+function groupFieldsByRow(fields: FormField[]): FormField[][] {
+  if (fields.length === 0) return []
+  const rowMap = new Map<number, FormField[]>()
+  for (const field of fields) {
+    const row = field.layout?.row ?? 0
+    if (!rowMap.has(row)) rowMap.set(row, [])
+    rowMap.get(row)!.push(field)
+  }
+  return Array.from(rowMap.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([, rowFields]) => rowFields)
+}
+
 export function FormCanvas() {
-  const { formConfig, selectedFieldId, selectField, previewMode, previewDevice } = useFormBuilder()
+  const { formConfig, selectedFieldId, selectField, previewMode, previewDevice, moveField } = useFormBuilder()
   const [answers, setAnswers] = useState<FormAnswers>({})
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'before' | 'after' } | null>(null)
 
   useEffect(() => {
     setAnswers(prevAnswers => {
@@ -410,29 +389,49 @@ export function FormCanvas() {
 
   const getConditionSummary = (field: FormField) => {
     const conditions = getVisibilityConditions(field.visibleWhen)
-    if (conditions.length === 0) {
-      return undefined
-    }
+    if (conditions.length === 0) return undefined
 
     const conditionSummaries = conditions.map(condition => {
       const sourceField = formConfig.fields.find(candidate => candidate.id === condition.sourceFieldId)
-      if (!sourceField) {
-        return null
-      }
-
+      if (!sourceField) return null
       const optionLabel = getConditionalValueOptions(sourceField).find(
         option => option.value === condition.value
       )?.label
-
       return `"${sourceField.label}" ${getConditionOperatorLabel(condition.operator)} "${optionLabel ?? condition.value}"`
     }).filter(Boolean)
 
-    if (conditionSummaries.length === 0) {
-      return 'תצוגה חכמה: תנאי לא זמין'
-    }
-
+    if (conditionSummaries.length === 0) return 'תצוגה חכמה: תנאי לא זמין'
     return `מוצג כאשר ${conditionSummaries.join(' וגם ')}`
   }
+
+  const handleDragOver = (e: React.DragEvent, fieldId: string) => {
+    e.preventDefault()
+    if (draggedId === fieldId) return
+    e.dataTransfer.dropEffect = 'move'
+    const rect = e.currentTarget.getBoundingClientRect()
+    const position = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+    setDropTarget(prev => {
+      if (prev?.id === fieldId && prev.position === position) return prev
+      return { id: fieldId, position }
+    })
+  }
+
+  const handleDrop = (e: React.DragEvent, fieldId: string) => {
+    e.preventDefault()
+    if (!draggedId || draggedId === fieldId || !dropTarget) return
+
+    const allFields = formConfig.fields
+    const fromIdx = allFields.findIndex(f => f.id === draggedId)
+    const targetIdx = allFields.findIndex(f => f.id === fieldId)
+    const insertAt = dropTarget.position === 'after' ? targetIdx + 1 : targetIdx
+    const storeToIndex = fromIdx < insertAt ? insertAt - 1 : insertAt
+
+    moveField(fromIdx, Math.max(0, Math.min(storeToIndex, allFields.length - 1)))
+    setDraggedId(null)
+    setDropTarget(null)
+  }
+
+  const rowGroups = groupFieldsByRow(visibleFields)
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
@@ -464,8 +463,15 @@ export function FormCanvas() {
             </div>
 
             {/* Form Fields */}
-            <div className="space-y-4">
-              {formConfig.fields.length === 0 ? (
+            <div
+              className="space-y-4"
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDropTarget(null)
+                }
+              }}
+            >
+              {visibleFields.length === 0 ? (
                 <div className="py-16 px-8 text-center border-2 border-dashed border-border rounded-lg">
                   <div className="text-muted-foreground">
                     <p className="text-sm font-medium">עדיין אין שדות</p>
@@ -473,17 +479,57 @@ export function FormCanvas() {
                   </div>
                 </div>
               ) : (
-                visibleFields.map(field => (
-                  <FieldRenderer
-                    key={field.id}
-                    field={field}
-                    isSelected={selectedFieldId === field.id}
-                    isPreview={previewMode}
-                    answerValue={answers[field.id]}
-                    onAnswerChange={value => updateAnswer(field.id, value)}
-                    conditionSummary={getConditionSummary(field)}
-                  />
-                ))
+                rowGroups.map((rowFields, rowIndex) => {
+                  const column0 = rowFields[0].layout?.column ?? 'full'
+                  const isFull = column0 === 'full'
+                  const isLoneHalf = !isFull && rowFields.length === 1
+
+                  return (
+                    <div
+                      key={rowIndex}
+                      className={cn(!isFull && 'flex gap-4')}
+                    >
+                      {rowFields.map(field => (
+                        <div
+                          key={field.id}
+                          className={cn(
+                            'relative',
+                            isFull ? 'w-full' : isLoneHalf ? 'w-1/2' : 'flex-1 min-w-0',
+                            !previewMode && (draggedId ? 'cursor-grabbing' : 'cursor-grab'),
+                          )}
+                          draggable={!previewMode}
+                          onDragStart={(e) => {
+                            setDraggedId(field.id)
+                            e.dataTransfer.effectAllowed = 'move'
+                            e.dataTransfer.setData('text/plain', field.id)
+                          }}
+                          onDragEnd={() => {
+                            setDraggedId(null)
+                            setDropTarget(null)
+                          }}
+                          onDragOver={(e) => handleDragOver(e, field.id)}
+                          onDrop={(e) => handleDrop(e, field.id)}
+                        >
+                          {dropTarget?.id === field.id && dropTarget.position === 'before' && (
+                            <div className="absolute -top-2 inset-x-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+                          )}
+                          <FieldRenderer
+                            field={field}
+                            isSelected={selectedFieldId === field.id}
+                            isPreview={previewMode}
+                            answerValue={answers[field.id]}
+                            onAnswerChange={value => updateAnswer(field.id, value)}
+                            conditionSummary={getConditionSummary(field)}
+                            isDragged={draggedId === field.id}
+                          />
+                          {dropTarget?.id === field.id && dropTarget.position === 'after' && (
+                            <div className="absolute -bottom-2 inset-x-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })
               )}
             </div>
 

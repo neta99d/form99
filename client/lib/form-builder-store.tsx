@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { type FormField, type FormConfig, createField, generateFieldId, type FieldType, sanitizeFieldVisibilityRules } from './form-builder-types'
+import { type FormField, type FormConfig, createField, generateFieldId, type FieldType, sanitizeFieldVisibilityRules, normalizeLayoutRows } from './form-builder-types'
 import { getForm } from './forms-api'
 
 interface FormBuilderState {
@@ -64,7 +64,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
             id: form.id,
             title: form.title,
             description: form.description ?? undefined,
-            fields: sanitizeFieldVisibilityRules(form.fields),
+            fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(form.fields)),
             submitButtonText: form.submit_button_text,
             direction: form.direction,
           })
@@ -83,7 +83,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
     setFormConfig(prev => {
       const newField = createField(type, prev.fields)
       newFieldId = newField.id
-      return { ...prev, fields: [...prev.fields, newField] }
+      return { ...prev, fields: normalizeLayoutRows([...prev.fields, newField]) }
     })
     setSelectedFieldId(newFieldId)
   }, [])
@@ -97,10 +97,10 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
   }, [])
 
   const updateField = useCallback((id: string, updates: Partial<FormField>) => {
-    setFormConfig(prev => ({
-      ...prev,
-      fields: prev.fields.map(f => (f.id === id ? { ...f, ...updates } : f)),
-    }))
+    setFormConfig(prev => {
+      const updated = prev.fields.map(f => (f.id === id ? { ...f, ...updates } : f))
+      return { ...prev, fields: 'layout' in updates ? normalizeLayoutRows(updated) : updated }
+    })
   }, [])
 
   const renameFieldId = useCallback((oldId: string, newId: string) => {
@@ -133,7 +133,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
       const fields = [...prev.fields]
       const [moved] = fields.splice(fromIndex, 1)
       fields.splice(toIndex, 0, moved)
-      return { ...prev, fields: sanitizeFieldVisibilityRules(fields) }
+      return { ...prev, fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(fields)) }
     })
   }, [])
 
@@ -164,6 +164,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
         ...field,
         id: generateFieldId(field.type, prev.fields),
         label: `${field.label} (עותק)`,
+        layout: { row: 0, column: 'full' },
         options: field.options?.map(o => ({
           ...o,
           id: `opt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
@@ -171,7 +172,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
       }
       const fields = [...prev.fields]
       fields.splice(idx + 1, 0, copy)
-      return { ...prev, fields: sanitizeFieldVisibilityRules(fields) }
+      return { ...prev, fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(fields)) }
     })
   }, [])
 

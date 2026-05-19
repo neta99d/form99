@@ -262,6 +262,50 @@ function FieldSettingsForm({ field }: { field: FormField }) {
         </div>
       </SettingsSection>
 
+      {/* Layout */}
+      <SettingsSection title="פריסה">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="halfWidth" className="cursor-pointer">חצי רוחב</Label>
+            <Switch
+              id="halfWidth"
+              checked={(field.layout?.column ?? 'full') !== 'full'}
+              onCheckedChange={checked => {
+                handleUpdate({ layout: { row: field.layout?.row ?? 0, column: checked ? 'left' : 'full' } })
+              }}
+            />
+          </div>
+          {(field.layout?.column ?? 'full') !== 'full' && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleUpdate({ layout: { row: field.layout?.row ?? 0, column: 'left' } })}
+                className={cn(
+                  'flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
+                  field.layout?.column === 'left'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
+                )}
+              >
+                שמאל
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdate({ layout: { row: field.layout?.row ?? 0, column: 'right' } })}
+                className={cn(
+                  'flex-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors',
+                  field.layout?.column === 'right'
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
+                )}
+              >
+                ימין
+              </button>
+            </div>
+          )}
+        </div>
+      </SettingsSection>
+
       {/* Options for select/radio */}
       {hasOptions && field.options && (
         <SettingsSection title="אפשרויות בחירה">

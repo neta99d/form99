@@ -44,6 +44,11 @@ export interface VisibilityRule {
 
 export type FieldVisibility = VisibilityRule | VisibilityCondition
 
+export interface FieldLayout {
+  row: number
+  column: 'full' | 'left' | 'right'
+}
+
 export interface FormField {
   id: string
   type: FieldType
@@ -61,6 +66,7 @@ export interface FormField {
   headingLevel?: 'h1' | 'h2' | 'h3' | 'h4'
   content?: string
   visibleWhen?: FieldVisibility
+  layout?: FieldLayout
 }
 
 export type FormDirection = 'ltr' | 'rtl'
@@ -294,6 +300,26 @@ export function sanitizeFieldVisibilityRules(fields: FormField[]) {
   })
 }
 
+export function normalizeLayoutRows(fields: FormField[]): FormField[] {
+  let currentRow = 0
+  let prevColumn: 'full' | 'left' | 'right' | null = null
+
+  return fields.map((field) => {
+    const column = field.layout?.column ?? 'full'
+    let row: number
+
+    if (column === 'right' && prevColumn === 'left') {
+      row = currentRow - 1
+    } else {
+      row = currentRow
+      currentRow++
+    }
+
+    prevColumn = column
+    return { ...field, layout: { row, column } }
+  })
+}
+
 const FIELD_ID_PREFIXES: Partial<Record<FieldType, string>> = {
   star_rating: 'stars',
   number_rating: 'rating',
@@ -301,8 +327,11 @@ const FIELD_ID_PREFIXES: Partial<Record<FieldType, string>> = {
 
 export function generateFieldId(type: FieldType, existingFields: FormField[]): string {
   const prefix = FIELD_ID_PREFIXES[type] ?? type
-  const count = existingFields.filter(f => f.type === type).length
-  return count === 0 ? prefix : `${prefix}${count}`
+  const existingIds = new Set(existingFields.map(f => f.id))
+  if (!existingIds.has(prefix)) return prefix
+  let n = 1
+  while (existingIds.has(`${prefix}${n}`)) n++
+  return `${prefix}${n}`
 }
 
 export function createField(type: FieldType, existingFields: FormField[] = []): FormField {
@@ -324,6 +353,7 @@ export function createField(type: FieldType, existingFields: FormField[] = []): 
     headingLevel: config.headingLevel,
     content: config.content,
     visibleWhen: undefined,
+    layout: { row: 0, column: 'full' },
   }
 }
 
