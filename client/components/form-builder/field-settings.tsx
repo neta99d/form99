@@ -276,7 +276,7 @@ function FieldSettingsForm({ field }: { field: FormField }) {
             />
           </div>
           {(field.layout?.column ?? 'full') !== 'full' && (
-            <div className="flex gap-2">
+            <div className="flex gap-2" dir="ltr">
               <button
                 type="button"
                 onClick={() => handleUpdate({ layout: { row: field.layout?.row ?? 0, column: 'left' } })}
