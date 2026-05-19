@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useFormBuilder } from '@/lib/form-builder-store'
 import {
   type FormField,
@@ -88,7 +89,33 @@ function SettingsSection({ title, children }: { title: string; children: React.R
 }
 
 function FieldSettingsForm({ field }: { field: FormField }) {
-  const { formConfig, updateField } = useFormBuilder()
+  const { formConfig, updateField, renameFieldId } = useFormBuilder()
+  const [editedId, setEditedId] = useState(field.id)
+  const [idError, setIdError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setEditedId(field.id)
+    setIdError(null)
+  }, [field.id])
+
+  const handleIdChange = (value: string) => {
+    setEditedId(value)
+    if (!value.trim()) {
+      setIdError('מזהה שדה לא יכול להיות ריק')
+    } else if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+      setIdError('מזהה יכול להכיל רק אותיות, מספרים, _ ו-')
+    } else if (formConfig.fields.some(f => f.id !== field.id && f.id === value)) {
+      setIdError('מזהה זה כבר בשימוש')
+    } else {
+      setIdError(null)
+    }
+  }
+
+  const handleIdBlur = () => {
+    if (!idError && editedId !== field.id) {
+      renameFieldId(field.id, editedId)
+    }
+  }
 
   const handleUpdate = (updates: Partial<FormField>) => {
     updateField(field.id, updates)
@@ -138,6 +165,21 @@ function FieldSettingsForm({ field }: { field: FormField }) {
       {/* Basic Settings */}
       <SettingsSection title="בסיסי">
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="fieldId">מזהה שדה (ID)</Label>
+            <Input
+              id="fieldId"
+              value={editedId}
+              onChange={e => handleIdChange(e.target.value)}
+              onBlur={handleIdBlur}
+              className={idError ? 'border-destructive focus-visible:ring-destructive' : ''}
+              dir="ltr"
+            />
+            {idError && (
+              <p className="text-xs text-destructive">{idError}</p>
+            )}
+          </div>
+
           {!isLayoutElement && (
             <div className="space-y-2">
               <Label htmlFor="label">תווית</Label>

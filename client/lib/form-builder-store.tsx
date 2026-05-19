@@ -18,6 +18,7 @@ interface FormBuilderActions {
   addField: (type: FieldType) => void
   removeField: (id: string) => void
   updateField: (id: string, updates: Partial<FormField>) => void
+  renameFieldId: (oldId: string, newId: string) => void
   moveField: (fromIndex: number, toIndex: number) => void
   selectField: (id: string | null) => void
   updateFormConfig: (updates: Partial<Pick<FormConfig, 'title' | 'description' | 'submitButtonText' | 'direction'>>) => void
@@ -102,6 +103,31 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
     }))
   }, [])
 
+  const renameFieldId = useCallback((oldId: string, newId: string) => {
+    setFormConfig(prev => ({
+      ...prev,
+      fields: prev.fields.map(f => {
+        if (f.id === oldId) return { ...f, id: newId }
+        if (!f.visibleWhen) return f
+        if ('conditions' in f.visibleWhen) {
+          return {
+            ...f,
+            visibleWhen: {
+              conditions: f.visibleWhen.conditions.map(c =>
+                c.sourceFieldId === oldId ? { ...c, sourceFieldId: newId } : c
+              ),
+            },
+          }
+        }
+        if (f.visibleWhen.sourceFieldId === oldId) {
+          return { ...f, visibleWhen: { ...f.visibleWhen, sourceFieldId: newId } }
+        }
+        return f
+      }),
+    }))
+    setSelectedFieldId(prev => (prev === oldId ? newId : prev))
+  }, [])
+
   const moveField = useCallback((fromIndex: number, toIndex: number) => {
     setFormConfig(prev => {
       const fields = [...prev.fields]
@@ -164,6 +190,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
         addField,
         removeField,
         updateField,
+        renameFieldId,
         moveField,
         selectField,
         updateFormConfig,
