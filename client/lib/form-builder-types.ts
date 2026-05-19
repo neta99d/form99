@@ -27,6 +27,10 @@ export type VisibilityConditionOperator =
   | 'not_starts_with'
   | 'contains'
   | 'not_contains'
+  | 'greater_than'
+  | 'less_than'
+  | 'greater_or_equal'
+  | 'less_or_equal'
 
 export interface VisibilityCondition {
   sourceFieldId: string
@@ -124,19 +128,40 @@ export function isConditionalSourceField(field: FormField) {
 
 export function getConditionOperatorLabel(operator: VisibilityConditionOperator) {
   switch (operator) {
-    case 'not_equals':
-      return 'לא שווה ל'
-    case 'starts_with':
-      return 'מתחיל ב'
-    case 'not_starts_with':
-      return 'לא מתחיל ב'
-    case 'contains':
-      return 'מכיל'
-    case 'not_contains':
-      return 'לא מכיל'
+    case 'not_equals':      return 'לא שווה ל'
+    case 'starts_with':     return 'מתחיל ב'
+    case 'not_starts_with': return 'לא מתחיל ב'
+    case 'contains':        return 'מכיל'
+    case 'not_contains':    return 'לא מכיל'
+    case 'greater_than':    return 'גדול מ'
+    case 'less_than':       return 'קטן מ'
+    case 'greater_or_equal': return 'גדול או שווה ל'
+    case 'less_or_equal':   return 'קטן או שווה ל'
     case 'equals':
+    default:                return 'שווה ל'
+  }
+}
+
+const TEXT_OPERATORS: VisibilityConditionOperator[] = ['equals', 'not_equals', 'starts_with', 'not_starts_with', 'contains', 'not_contains']
+const NUMERIC_OPERATORS: VisibilityConditionOperator[] = ['equals', 'not_equals', 'greater_than', 'less_than', 'greater_or_equal', 'less_or_equal']
+const EQUALITY_OPERATORS: VisibilityConditionOperator[] = ['equals', 'not_equals']
+const BOOLEAN_OPERATORS: VisibilityConditionOperator[] = ['equals']
+
+export function getOperatorsForField(field: FormField): VisibilityConditionOperator[] {
+  switch (field.type) {
+    case 'number':
+    case 'slider':
+    case 'star_rating':
+    case 'number_rating':
+    case 'date':
+      return NUMERIC_OPERATORS
+    case 'select':
+    case 'radio':
+      return EQUALITY_OPERATORS
+    case 'checkbox':
+      return BOOLEAN_OPERATORS
     default:
-      return 'שווה ל'
+      return TEXT_OPERATORS
   }
 }
 
@@ -158,6 +183,22 @@ export function getConditionalValueOptions(field: FormField): SelectOption[] {
 
   if (field.type === 'select' || field.type === 'radio') {
     return field.options ?? []
+  }
+
+  if (field.type === 'star_rating') {
+    return [1, 2, 3, 4, 5].map(i => ({
+      id: `${field.id}_s${i}`,
+      label: '★'.repeat(i),
+      value: String(i),
+    }))
+  }
+
+  if (field.type === 'number_rating') {
+    return Array.from({ length: 10 }, (_, i) => ({
+      id: `${field.id}_n${i + 1}`,
+      label: String(i + 1),
+      value: String(i + 1),
+    }))
   }
 
   return []
@@ -204,19 +245,17 @@ export function doesFieldMatchCondition(condition: VisibilityCondition, answers:
   const currentValue = normalizeAnswerValue(answers[condition.sourceFieldId])
 
   switch (condition.operator) {
-    case 'not_equals':
-      return currentValue !== condition.value
-    case 'starts_with':
-      return currentValue.startsWith(condition.value)
-    case 'not_starts_with':
-      return !currentValue.startsWith(condition.value)
-    case 'contains':
-      return currentValue.includes(condition.value)
-    case 'not_contains':
-      return !currentValue.includes(condition.value)
+    case 'not_equals':       return currentValue !== condition.value
+    case 'starts_with':      return currentValue.startsWith(condition.value)
+    case 'not_starts_with':  return !currentValue.startsWith(condition.value)
+    case 'contains':         return currentValue.includes(condition.value)
+    case 'not_contains':     return !currentValue.includes(condition.value)
+    case 'greater_than':     return parseFloat(currentValue) > parseFloat(condition.value)
+    case 'less_than':        return parseFloat(currentValue) < parseFloat(condition.value)
+    case 'greater_or_equal': return parseFloat(currentValue) >= parseFloat(condition.value)
+    case 'less_or_equal':    return parseFloat(currentValue) <= parseFloat(condition.value)
     case 'equals':
-    default:
-      return currentValue === condition.value
+    default:                 return currentValue === condition.value
   }
 }
 
@@ -587,19 +626,17 @@ export function generateFormHTML(config: FormConfig): string {
           const expectedValue = condition.value ?? '';
 
           switch (condition.operator) {
-            case 'not_equals':
-              return currentValue !== expectedValue;
-            case 'starts_with':
-              return currentValue.startsWith(expectedValue);
-            case 'not_starts_with':
-              return !currentValue.startsWith(expectedValue);
-            case 'contains':
-              return currentValue.includes(expectedValue);
-            case 'not_contains':
-              return !currentValue.includes(expectedValue);
+            case 'not_equals':       return currentValue !== expectedValue;
+            case 'starts_with':      return currentValue.startsWith(expectedValue);
+            case 'not_starts_with':  return !currentValue.startsWith(expectedValue);
+            case 'contains':         return currentValue.includes(expectedValue);
+            case 'not_contains':     return !currentValue.includes(expectedValue);
+            case 'greater_than':     return parseFloat(currentValue) > parseFloat(expectedValue);
+            case 'less_than':        return parseFloat(currentValue) < parseFloat(expectedValue);
+            case 'greater_or_equal': return parseFloat(currentValue) >= parseFloat(expectedValue);
+            case 'less_or_equal':    return parseFloat(currentValue) <= parseFloat(expectedValue);
             case 'equals':
-            default:
-              return currentValue === expectedValue;
+            default:                 return currentValue === expectedValue;
           }
         });
 

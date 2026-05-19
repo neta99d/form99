@@ -11,6 +11,8 @@ import {
   createDefaultVisibilityRule,
   getConditionalSourceFields,
   getConditionalValueOptions,
+  getConditionOperatorLabel,
+  getOperatorsForField,
   getVisibilityConditions,
 } from '@/lib/form-builder-types'
 import { Input } from '@/components/ui/input'
@@ -368,12 +370,11 @@ function FieldSettingsForm({ field }: { field: FormField }) {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="equals">שווה ל</SelectItem>
-                          <SelectItem value="not_equals">לא שווה ל</SelectItem>
-                          <SelectItem value="starts_with">מתחיל ב</SelectItem>
-                          <SelectItem value="not_starts_with">לא מתחיל ב</SelectItem>
-                          <SelectItem value="contains">מכיל</SelectItem>
-                          <SelectItem value="not_contains">לא מכיל</SelectItem>
+                          {(selectedSourceField ? getOperatorsForField(selectedSourceField) : ['equals', 'not_equals'] as VisibilityConditionOperator[]).map(op => (
+                            <SelectItem key={op} value={op}>
+                              {getConditionOperatorLabel(op)}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -396,6 +397,19 @@ function FieldSettingsForm({ field }: { field: FormField }) {
                             ))}
                           </SelectContent>
                         </Select>
+                      </div>
+                    ) : selectedSourceField && ['number', 'slider'].includes(selectedSourceField.type) ? (
+                      <div className="space-y-2">
+                        <Label htmlFor={`visibilityValue-${index}`}>ערך</Label>
+                        <Input
+                          id={`visibilityValue-${index}`}
+                          type="number"
+                          min={selectedSourceField.min}
+                          max={selectedSourceField.max}
+                          value={condition.value}
+                          onChange={e => updateVisibilityCondition(index, { value: e.target.value })}
+                          placeholder="0"
+                        />
                       </div>
                     ) : (
                       <div className="space-y-2">
