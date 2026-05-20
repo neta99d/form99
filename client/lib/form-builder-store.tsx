@@ -16,10 +16,16 @@ interface FormBuilderState {
 
 interface FormBuilderActions {
   addField: (type: FieldType) => void
+  addFieldAt: (type: FieldType, index: number, layout?: FormField['layout']) => void
   removeField: (id: string) => void
   updateField: (id: string, updates: Partial<FormField>) => void
   renameFieldId: (oldId: string, newId: string) => void
   moveField: (fromIndex: number, toIndex: number) => void
+  moveFieldWithLayoutUpdates: (
+    fromIndex: number,
+    toIndex: number,
+    layoutUpdates: Record<string, FormField['layout']>
+  ) => void
   selectField: (id: string | null) => void
   updateFormConfig: (updates: Partial<Pick<FormConfig, 'title' | 'description' | 'submitButtonText' | 'direction'>>) => void
   setPreviewMode: (enabled: boolean) => void
@@ -79,14 +85,26 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
   }, [mode, formId])
 
   const addField = useCallback((type: FieldType) => {
-    let newFieldId = ''
+    const newField = createField(type, formConfig.fields)
     setFormConfig(prev => {
-      const newField = createField(type, prev.fields)
-      newFieldId = newField.id
       return { ...prev, fields: normalizeLayoutRows([...prev.fields, newField]) }
     })
-    setSelectedFieldId(newFieldId)
-  }, [])
+    setSelectedFieldId(newField.id)
+  }, [formConfig.fields])
+
+  const addFieldAt = useCallback((type: FieldType, index: number, layout?: FormField['layout']) => {
+    const newField = {
+      ...createField(type, formConfig.fields),
+      layout: layout ?? { row: 0, column: 'full' as const },
+    }
+    setFormConfig(prev => {
+      const fields = [...prev.fields]
+      const insertIndex = Math.max(0, Math.min(index, fields.length))
+      fields.splice(insertIndex, 0, newField)
+      return { ...prev, fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(fields)) }
+    })
+    setSelectedFieldId(newField.id)
+  }, [formConfig.fields])
 
   const removeField = useCallback((id: string) => {
     setFormConfig(prev => ({
@@ -134,6 +152,22 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
       const [moved] = fields.splice(fromIndex, 1)
       fields.splice(toIndex, 0, moved)
       return { ...prev, fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(fields)) }
+    })
+  }, [])
+
+  const moveFieldWithLayoutUpdates = useCallback((
+    fromIndex: number,
+    toIndex: number,
+    layoutUpdates: Record<string, FormField['layout']>
+  ) => {
+    setFormConfig(prev => {
+      const fields = [...prev.fields]
+      const [moved] = fields.splice(fromIndex, 1)
+      fields.splice(toIndex, 0, moved)
+      const updated = fields.map(field =>
+        layoutUpdates[field.id] ? { ...field, layout: layoutUpdates[field.id] } : field
+      )
+      return { ...prev, fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(updated)) }
     })
   }, [])
 
@@ -189,10 +223,12 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
         mode,
         formId,
         addField,
+        addFieldAt,
         removeField,
         updateField,
         renameFieldId,
         moveField,
+        moveFieldWithLayoutUpdates,
         selectField,
         updateFormConfig,
         setPreviewMode,

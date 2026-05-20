@@ -75,9 +75,15 @@ export function FieldLibrary() {
                 return (
                   <button
                     key={type}
+                    draggable
                     onClick={() => addField(type as FieldType)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'copy'
+                      e.dataTransfer.setData('application/x-form99-field-type', type)
+                      e.dataTransfer.setData('text/plain', type)
+                    }}
                     className={cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-md text-right',
+                      'flex items-center gap-3 px-3 py-2.5 rounded-md text-right cursor-grab active:cursor-grabbing',
                       'bg-background border border-border/50',
                       'hover:border-primary/30 hover:bg-accent/50',
                       'transition-all duration-150 group'

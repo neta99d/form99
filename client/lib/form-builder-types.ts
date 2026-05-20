@@ -302,22 +302,36 @@ export function sanitizeFieldVisibilityRules(fields: FormField[]) {
 
 export function normalizeLayoutRows(fields: FormField[]): FormField[] {
   let currentRow = 0
-  let prevColumn: 'full' | 'left' | 'right' | null = null
+  const normalized: FormField[] = []
 
-  return fields.map((field) => {
+  for (let index = 0; index < fields.length; index++) {
+    const field = fields[index]
     const column = field.layout?.column ?? 'full'
-    let row: number
 
-    if (column === 'right' && prevColumn === 'left') {
-      row = currentRow - 1
-    } else {
-      row = currentRow
-      currentRow++
+    if (column !== 'full') {
+      const nextField = fields[index + 1]
+      const nextColumn = nextField?.layout?.column ?? 'full'
+      const sameRequestedRow = field.layout?.row === nextField?.layout?.row
+      const complementaryColumns =
+        (column === 'left' && nextColumn === 'right') ||
+        (column === 'right' && nextColumn === 'left')
+
+      if (nextField && sameRequestedRow && complementaryColumns) {
+        normalized.push(
+          { ...field, layout: { row: currentRow, column } },
+          { ...nextField, layout: { row: currentRow, column: nextColumn } }
+        )
+        currentRow++
+        index++
+        continue
+      }
     }
 
-    prevColumn = column
-    return { ...field, layout: { row, column } }
-  })
+    normalized.push({ ...field, layout: { row: currentRow, column } })
+    currentRow++
+  }
+
+  return normalized
 }
 
 const FIELD_ID_PREFIXES: Partial<Record<FieldType, string>> = {

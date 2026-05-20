@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { format, parseISO, isValid } from 'date-fns'
 import { enUS, he } from 'date-fns/locale'
 import { useFormBuilder } from '@/lib/form-builder-store'
 import {
   type FormAnswers,
   type FormField,
+  type FieldType,
   getConditionOperatorLabel,
   getConditionalValueOptions,
   getVisibilityConditions,
@@ -337,6 +338,36 @@ function FieldRenderer({
   )
 }
 
+function PhantomCard({
+  halfColumn, isRtl, onDragOver, onDrop,
+}: {
+  halfColumn?: 'left' | 'right'
+  isRtl: boolean
+  onDragOver?: React.DragEventHandler
+  onDrop?: React.DragEventHandler
+}) {
+  if (!halfColumn) {
+    return (
+      <div
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        className="min-h-[70px] rounded-lg border-2 border-dashed border-primary/50 bg-primary/5"
+      />
+    )
+  }
+  // cardFirst → card gets order-1 (screen-LEFT in LTR, screen-RIGHT in RTL)
+  const cardFirst = (!isRtl && halfColumn === 'left') || (isRtl && halfColumn === 'right')
+  return (
+    <div className="flex gap-4" onDragOver={onDragOver} onDrop={onDrop}>
+      <div className={cn(
+        'flex-1 min-w-0 min-h-[70px] rounded-lg border-2 border-dashed border-primary/50 bg-primary/5',
+        cardFirst ? 'order-1' : 'order-2',
+      )} />
+      <div className={cn('flex-1 min-w-0', cardFirst ? 'order-2' : 'order-1')} />
+    </div>
+  )
+}
+
 function groupFieldsByRow(fields: FormField[]): FormField[][] {
   if (fields.length === 0) return []
   const rowMap = new Map<number, FormField[]>()
@@ -351,13 +382,28 @@ function groupFieldsByRow(fields: FormField[]): FormField[][] {
 }
 
 type DropTarget =
-  | { id: string; mode: 'before' | 'after' }
+  | { id: string; mode: 'before' | 'after'; halfColumn?: 'left' | 'right' }
   | { id: string; mode: 'merge'; intoColumn: 'left' | 'right' }
 
+const FIELD_ID_DATA_TYPE = 'application/x-form99-field-id'
+const FIELD_TYPE_DATA_TYPE = 'application/x-form99-field-type'
+const EMPTY_DROP_TARGET_ID = '__empty__'
+
 export function FormCanvas() {
-  const { formConfig, selectedFieldId, selectField, previewMode, previewDevice, moveField, updateField } = useFormBuilder()
+  const {
+    formConfig,
+    selectedFieldId,
+    selectField,
+    previewMode,
+    previewDevice,
+    addFieldAt,
+    moveField,
+    moveFieldWithLayoutUpdates,
+    updateField,
+  } = useFormBuilder()
   const [answers, setAnswers] = useState<FormAnswers>({})
   const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [draggedFieldType, setDraggedFieldType] = useState<FieldType | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
 
   useEffect(() => {
@@ -410,11 +456,28 @@ export function FormCanvas() {
 
   const isRtl = formConfig.direction === 'rtl'
   const rowGroups = groupFieldsByRow(visibleFields)
+  const getPointerColumn = (e: React.DragEvent, rect: DOMRect): 'left' | 'right' => {
+    return e.clientX < rect.left + rect.width / 2 ? 'left' : 'right'
+  }
+
+  const hasDraggedFieldType = (e: React.DragEvent) => {
+    return Array.from(e.dataTransfer.types).includes(FIELD_TYPE_DATA_TYPE)
+  }
+
+  const getDraggedFieldType = (e: React.DragEvent): FieldType | null => {
+    return (draggedFieldType || e.dataTransfer.getData(FIELD_TYPE_DATA_TYPE) || null) as FieldType | null
+  }
+
+  const clearDragState = () => {
+    setDraggedId(null)
+    setDraggedFieldType(null)
+    setDropTarget(null)
+  }
 
   const handleDragOver = (e: React.DragEvent, fieldId: string) => {
     e.preventDefault()
     if (draggedId === fieldId) return
-    e.dataTransfer.dropEffect = 'move'
+    e.dataTransfer.dropEffect = draggedId ? 'move' : 'copy'
 
     const draggedField = formConfig.fields.find(f => f.id === draggedId)
     const targetField  = formConfig.fields.find(f => f.id === fieldId)
@@ -422,25 +485,51 @@ export function FormCanvas() {
     const targetIsHalf  = (targetField?.layout?.column ?? 'full') !== 'full'
     const rect = e.currentTarget.getBoundingClientRect()
 
+    // Merge mode: both half-width and cursor in middle 50% vertically
     if (draggedIsHalf && targetIsHalf) {
-      const intoColumn: 'left' | 'right' = e.clientX < rect.left + rect.width / 2 ? 'left' : 'right'
-      setDropTarget(prev =>
-        prev?.id === fieldId && prev.mode === 'merge' && (prev as { intoColumn: string }).intoColumn === intoColumn
-          ? prev
-          : { id: fieldId, mode: 'merge', intoColumn }
-      )
-      return
+      const vThreshold = rect.height * 0.25
+      if (e.clientY >= rect.top + vThreshold && e.clientY <= rect.bottom - vThreshold) {
+        const intoColumn = getPointerColumn(e, rect)
+        setDropTarget(prev =>
+          prev?.id === fieldId && prev.mode === 'merge' && (prev as { intoColumn: string }).intoColumn === intoColumn
+            ? prev
+            : { id: fieldId, mode: 'merge', intoColumn }
+        )
+        return
+      }
     }
 
     const mode = (e.clientY < rect.top + rect.height / 2 ? 'before' : 'after') as 'before' | 'after'
-    setDropTarget(prev =>
-      prev?.id === fieldId && prev.mode === mode ? prev : { id: fieldId, mode }
-    )
+    if (draggedIsHalf) {
+      const halfColumn = getPointerColumn(e, rect)
+      setDropTarget(prev => {
+        const p = prev as ({ mode: 'before' | 'after'; halfColumn?: string } & { id: string }) | null
+        return p?.id === fieldId && p.mode === mode && p.halfColumn === halfColumn
+          ? prev
+          : { id: fieldId, mode, halfColumn }
+      })
+    } else {
+      setDropTarget(prev =>
+        prev?.id === fieldId && prev.mode === mode ? prev : { id: fieldId, mode }
+      )
+    }
   }
 
   const handleDrop = (e: React.DragEvent, fieldId: string) => {
     e.preventDefault()
-    if (!draggedId || draggedId === fieldId || !dropTarget) return
+    if (!dropTarget) return
+
+    const fieldType = getDraggedFieldType(e)
+    if (!draggedId && fieldType) {
+      if (dropTarget.mode === 'merge') return
+      const targetIdx = formConfig.fields.findIndex(f => f.id === fieldId)
+      const insertAt = dropTarget.mode === 'after' ? targetIdx + 1 : targetIdx
+      addFieldAt(fieldType, insertAt)
+      clearDragState()
+      return
+    }
+
+    if (!draggedId || draggedId === fieldId) return
 
     const allFields = formConfig.fields
     const fromIdx   = allFields.findIndex(f => f.id === draggedId)
@@ -451,21 +540,51 @@ export function FormCanvas() {
       const oppositeColumn: 'left' | 'right' = intoColumn === 'left' ? 'right' : 'left'
       const insertAt     = intoColumn === 'right' ? targetIdx + 1 : targetIdx
       const storeToIndex = fromIdx < insertAt ? insertAt - 1 : insertAt
-      moveField(fromIdx, Math.max(0, Math.min(storeToIndex, allFields.length - 1)))
-      if (allFields[fromIdx]?.layout?.column !== intoColumn) {
-        updateField(draggedId, { layout: { row: 0, column: intoColumn } })
-      }
-      if (allFields[targetIdx]?.layout?.column !== oppositeColumn) {
-        updateField(fieldId, { layout: { row: 0, column: oppositeColumn } })
-      }
+      const targetRow = allFields[targetIdx]?.layout?.row ?? 0
+      moveFieldWithLayoutUpdates(
+        fromIdx,
+        Math.max(0, Math.min(storeToIndex, allFields.length - 1)),
+        {
+          [draggedId]: { row: targetRow, column: intoColumn },
+          [fieldId]: { row: targetRow, column: oppositeColumn },
+        }
+      )
     } else {
-      const insertAt     = dropTarget.mode === 'after' ? targetIdx + 1 : targetIdx
-      const storeToIndex = fromIdx < insertAt ? insertAt - 1 : insertAt
-      moveField(fromIdx, Math.max(0, Math.min(storeToIndex, allFields.length - 1)))
+      const insertAt       = dropTarget.mode === 'after' ? targetIdx + 1 : targetIdx
+      const storeToIndex   = fromIdx < insertAt ? insertAt - 1 : insertAt
+      const draggedField   = allFields[fromIdx]
+      const draggedIsHalf  = (draggedField?.layout?.column ?? 'full') !== 'full'
+      const dropHalfColumn = (dropTarget as { halfColumn?: 'left' | 'right' }).halfColumn
+      const targetIndex = Math.max(0, Math.min(storeToIndex, allFields.length - 1))
+
+      if (dropHalfColumn && draggedIsHalf) {
+        const standaloneRow = Math.max(...allFields.map(field => field.layout?.row ?? 0), 0) + allFields.length + 1
+        moveFieldWithLayoutUpdates(fromIdx, targetIndex, {
+          [draggedId]: { row: standaloneRow, column: dropHalfColumn },
+        })
+      } else {
+        moveField(fromIdx, targetIndex)
+      }
     }
 
-    setDraggedId(null)
-    setDropTarget(null)
+    clearDragState()
+  }
+
+  const handleEmptyCanvasDragOver = (e: React.DragEvent) => {
+    if (!hasDraggedFieldType(e)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setDropTarget(prev =>
+      prev?.id === EMPTY_DROP_TARGET_ID ? prev : { id: EMPTY_DROP_TARGET_ID, mode: 'after' }
+    )
+  }
+
+  const handleEmptyCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    const fieldType = getDraggedFieldType(e)
+    if (!fieldType) return
+    addFieldAt(fieldType, 0)
+    clearDragState()
   }
 
   return (
@@ -507,14 +626,28 @@ export function FormCanvas() {
               }}
             >
               {visibleFields.length === 0 ? (
-                <div className="py-16 px-8 text-center border-2 border-dashed border-border rounded-lg">
+                <div
+                  onDragOver={handleEmptyCanvasDragOver}
+                  onDrop={handleEmptyCanvasDrop}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                      setDropTarget(prev => prev?.id === EMPTY_DROP_TARGET_ID ? null : prev)
+                    }
+                  }}
+                  className={cn(
+                    'py-16 px-8 text-center border-2 border-dashed rounded-lg transition-colors',
+                    dropTarget?.id === EMPTY_DROP_TARGET_ID
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border'
+                  )}
+                >
                   <div className="text-muted-foreground">
                     <p className="text-sm font-medium">עדיין אין שדות</p>
                     <p className="text-xs mt-1">הוסיפו שדות מהחלונית הימנית כדי להתחיל</p>
                   </div>
                 </div>
               ) : (
-                rowGroups.map((rowFields, rowIndex) => {
+                rowGroups.flatMap((rowFields, rowIndex) => {
                   const column0 = rowFields[0].layout?.column ?? 'full'
                   const isFull = column0 === 'full'
                   const isLoneHalf = !isFull && rowFields.length === 1
@@ -524,8 +657,11 @@ export function FormCanvas() {
                   const draggedField = draggedId ? formConfig.fields.find(f => f.id === draggedId) : null
                   const draggedIsHalf = (draggedField?.layout?.column ?? 'full') !== 'full'
                   const showEmptyZone = isLoneHalf && draggedIsHalf
+                  const hasBeforeTarget = !previewMode && dropTarget?.mode === 'before' && rowFields.some(f => f.id === dropTarget.id)
+                  const hasAfterTarget  = !previewMode && dropTarget?.mode === 'after'  && rowFields.some(f => f.id === dropTarget.id)
+                  const phantomHalfCol  = (dropTarget as { halfColumn?: 'left' | 'right' } | null)?.halfColumn
 
-                  return (
+                  const rowEl = (
                     <div
                       key={rowIndex}
                       className={cn(!isFull && 'flex gap-4')}
@@ -543,19 +679,17 @@ export function FormCanvas() {
                           draggable={!previewMode}
                           onDragStart={(e) => {
                             setDraggedId(field.id)
+                            setDraggedFieldType(null)
                             e.dataTransfer.effectAllowed = 'move'
+                            e.dataTransfer.setData(FIELD_ID_DATA_TYPE, field.id)
                             e.dataTransfer.setData('text/plain', field.id)
                           }}
                           onDragEnd={() => {
-                            setDraggedId(null)
-                            setDropTarget(null)
+                            clearDragState()
                           }}
                           onDragOver={(e) => handleDragOver(e, field.id)}
                           onDrop={(e) => handleDrop(e, field.id)}
                         >
-                          {dropTarget?.id === field.id && dropTarget.mode === 'before' && (
-                            <div className="absolute -top-2 inset-x-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
-                          )}
                           <FieldRenderer
                             field={field}
                             isSelected={selectedFieldId === field.id}
@@ -565,9 +699,6 @@ export function FormCanvas() {
                             conditionSummary={getConditionSummary(field)}
                             isDragged={draggedId === field.id}
                           />
-                          {dropTarget?.id === field.id && dropTarget.mode === 'after' && (
-                            <div className="absolute -bottom-2 inset-x-0 h-0.5 bg-primary rounded-full z-10 pointer-events-none" />
-                          )}
                           {dropTarget?.id === field.id && dropTarget.mode === 'merge' && (
                             <div className={cn(
                               'absolute inset-y-0 w-0.5 bg-primary rounded-full z-10 pointer-events-none',
@@ -603,10 +734,16 @@ export function FormCanvas() {
                             const targetIdx = allFields.findIndex(f => f.id === loneField.id)
                             const insertAt = emptyColumn === 'right' ? targetIdx + 1 : targetIdx
                             const storeToIndex = fromIdx < insertAt ? insertAt - 1 : insertAt
-                            moveField(fromIdx, Math.max(0, Math.min(storeToIndex, allFields.length - 1)))
-                            updateField(draggedId, { layout: { row: 0, column: emptyColumn } })
-                            setDraggedId(null)
-                            setDropTarget(null)
+                            const targetRow = loneField.layout?.row ?? 0
+                            moveFieldWithLayoutUpdates(
+                              fromIdx,
+                              Math.max(0, Math.min(storeToIndex, allFields.length - 1)),
+                              {
+                                [loneField.id]: { row: targetRow, column: loneField.layout?.column ?? 'left' },
+                                [draggedId]: { row: targetRow, column: emptyColumn },
+                              }
+                            )
+                            clearDragState()
                           } : undefined}
                         >
                           <div
@@ -623,6 +760,18 @@ export function FormCanvas() {
                       )}
                     </div>
                   )
+                  const phantomHandlers = {
+                    onDragOver: (e: React.DragEvent) => e.preventDefault(),
+                    onDrop: (e: React.DragEvent) => {
+                      if (!dropTarget || dropTarget.mode === 'merge') return
+                      handleDrop(e, dropTarget.id)
+                    },
+                  }
+                  return [
+                    hasBeforeTarget ? <PhantomCard key={`before-${rowIndex}`} halfColumn={phantomHalfCol} isRtl={isRtl} {...phantomHandlers} /> : null,
+                    rowEl,
+                    hasAfterTarget  ? <PhantomCard key={`after-${rowIndex}`}  halfColumn={phantomHalfCol} isRtl={isRtl} {...phantomHandlers} /> : null,
+                  ].filter((x): x is ReactElement => x !== null)
                 })
               )}
             </div>
