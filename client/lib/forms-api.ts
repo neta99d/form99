@@ -1,4 +1,4 @@
-import { type FormField, type FormConfig } from './form-builder-types'
+import { type FormField, type FormConfig, type FormAnswerValue } from './form-builder-types'
 
 const API_BASE = process.env.NEXT_PUBLIC_FORM99_API_URL || 'http://localhost:8000'
 
@@ -109,6 +109,21 @@ export async function duplicateForm(formId: string): Promise<FormResponse> {
   const res = await fetch(`${API_BASE}/api/forms/${formId}/duplicate`, { method: 'POST' })
   if (!res.ok) throw new Error(`Failed to duplicate form: ${res.status}`)
   return res.json() as Promise<FormResponse>
+}
+
+export async function submitFormAnswers(
+  formId: string,
+  accountId: string,
+  serverId: string,
+  answers: Record<string, FormAnswerValue>,
+): Promise<{ id: string; form_id: string; submitted_at: string }> {
+  const res = await fetch(`${API_BASE}/api/forms/${formId}/submissions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ account_id: accountId, server_id: serverId, answers }),
+  })
+  if (!res.ok) throw new Error(`Failed to submit: ${res.status}`)
+  return res.json() as Promise<{ id: string; form_id: string; submitted_at: string }>
 }
 
 export async function checkFormNameUnique(

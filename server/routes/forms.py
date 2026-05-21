@@ -4,9 +4,9 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, Query
 
-from controllers import forms_controller
+from controllers import forms_controller, submissions_controller
 from database.db import get_db
-from models.form_model import FormCreate, FormResponse, FormSummary, FormUpdate
+from models.form_model import FormCreate, FormResponse, FormSummary, FormUpdate, SubmissionCreate, SubmissionResponse
 
 router = APIRouter(prefix="/api")
 
@@ -65,6 +65,15 @@ def duplicate_form(form_id: uuid.UUID) -> FormResponse:
     if row is None:
         raise HTTPException(status_code=404, detail="Form not found")
     return FormResponse(**row)
+
+
+@router.post("/forms/{form_id}/submissions", response_model=SubmissionResponse, status_code=201)
+def submit_form(form_id: uuid.UUID, body: SubmissionCreate) -> SubmissionResponse:
+    with get_db() as conn:
+        if forms_controller.get_form(conn, form_id) is None:
+            raise HTTPException(status_code=404, detail="Form not found")
+        row = submissions_controller.create_submission(conn, form_id, body.account_id, body.server_id, body.answers)
+    return SubmissionResponse(**row)
 
 
 @router.get("/accounts/{account_id}/forms", response_model=list[FormSummary])

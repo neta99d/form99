@@ -14,8 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { getForms, deleteForm, duplicateForm, createForm, checkFormNameUnique, DEFAULT_ACCOUNT_ID, DEFAULT_SERVER_ID, type FormSummary } from '@/lib/forms-api'
 import { cn } from '@/lib/utils'
 
-const DEMO_LINK = 'https://form99.app/form/demo'
-
 export default function Page() {
   const router = useRouter()
   const [forms, setForms] = useState<FormSummary[]>([])
@@ -60,9 +58,9 @@ export default function Page() {
     }
   }
 
-  const handleCopyLink = async (e: React.MouseEvent) => {
+  const handleCopyLink = async (e: React.MouseEvent, formId: string) => {
     e.stopPropagation()
-    await navigator.clipboard.writeText(DEMO_LINK)
+    await navigator.clipboard.writeText(`${window.location.origin}/forms/${formId}/answer`)
     toast.success('הקישור הועתק!')
   }
 
@@ -153,7 +151,7 @@ export default function Page() {
                           destructive
                         />
                         <ActionButton
-                          onClick={handleCopyLink}
+                          onClick={e => handleCopyLink(e, form.id)}
                           icon={<Link className="size-3.5" />}
                           label="קישור"
                         />

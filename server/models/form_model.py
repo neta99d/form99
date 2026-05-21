@@ -48,3 +48,17 @@ class FormSummary(BaseModel):
     name: str
     title: str
     updated_at: datetime
+
+
+class SubmissionCreate(BaseModel):
+    account_id: str
+    server_id: str
+    answers: dict
+
+
+class SubmissionResponse(BaseModel):
+    id: uuid.UUID
+    form_id: uuid.UUID
+    account_id: str
+    server_id: str
+    submitted_at: datetime
