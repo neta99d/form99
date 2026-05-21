@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 import { type FormField, type FormConfig, createField, generateFieldId, type FieldType, sanitizeFieldVisibilityRules, normalizeLayoutRows } from './form-builder-types'
-import { getForm } from './forms-api'
+import { getForm, DEFAULT_SERVER_ID } from './forms-api'
 
 interface FormBuilderState {
   formConfig: FormConfig
@@ -10,6 +10,7 @@ interface FormBuilderState {
   previewMode: boolean
   previewDevice: 'desktop' | 'mobile'
   accountId: string
+  serverId: string
   mode: 'create' | 'edit'
   formId?: string
 }
@@ -27,7 +28,7 @@ interface FormBuilderActions {
     layoutUpdates: Record<string, FormField['layout']>
   ) => void
   selectField: (id: string | null) => void
-  updateFormConfig: (updates: Partial<Pick<FormConfig, 'title' | 'description' | 'submitButtonText' | 'direction'>>) => void
+  updateFormConfig: (updates: Partial<Pick<FormConfig, 'name' | 'title' | 'description' | 'submitButtonText' | 'direction'>>) => void
   setPreviewMode: (enabled: boolean) => void
   setPreviewDevice: (device: 'desktop' | 'mobile') => void
   duplicateField: (id: string) => void
@@ -41,6 +42,8 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_FORM99_API_URL || 'http://lo
 
 const blankFormConfig: FormConfig = {
   id: '',
+  name: '',
+  serverId: DEFAULT_SERVER_ID,
   title: 'טופס חדש',
   description: undefined,
   fields: [],
@@ -53,11 +56,12 @@ interface FormBuilderProviderProps {
   mode: 'create' | 'edit'
   formId?: string
   accountId: string
+  serverId?: string
 }
 
-export function FormBuilderProvider({ children, mode, formId, accountId }: FormBuilderProviderProps) {
+export function FormBuilderProvider({ children, mode, formId, accountId, serverId = DEFAULT_SERVER_ID }: FormBuilderProviderProps) {
   const [isHydrated, setIsHydrated] = useState(false)
-  const [formConfig, setFormConfig] = useState<FormConfig>(blankFormConfig)
+  const [formConfig, setFormConfig] = useState<FormConfig>({ ...blankFormConfig, serverId })
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [previewMode, setPreviewModeState] = useState(false)
   const [previewDevice, setPreviewDeviceState] = useState<'desktop' | 'mobile'>('desktop')
@@ -68,6 +72,8 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
         .then(form => {
           setFormConfig({
             id: form.id,
+            name: form.name ?? '',
+            serverId: form.server_id ?? '',
             title: form.title,
             description: form.description ?? undefined,
             fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(form.fields)),
@@ -174,7 +180,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
   const selectField = useCallback((id: string | null) => setSelectedFieldId(id), [])
 
   const updateFormConfig = useCallback(
-    (updates: Partial<Pick<FormConfig, 'title' | 'description' | 'submitButtonText' | 'direction'>>) => {
+    (updates: Partial<Pick<FormConfig, 'name' | 'title' | 'description' | 'submitButtonText' | 'direction'>>) => {
       setFormConfig(prev => ({ ...prev, ...updates }))
     },
     []
@@ -220,6 +226,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId }: FormB
         previewMode,
         previewDevice,
         accountId,
+        serverId: formConfig.serverId,
         mode,
         formId,
         addField,

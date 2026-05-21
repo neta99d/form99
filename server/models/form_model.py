@@ -9,6 +9,8 @@ from pydantic import BaseModel
 
 class FormCreate(BaseModel):
     account_id: str
+    server_id: str = ''
+    name: str
     title: str
     description: str | None = None
     submit_button_text: str
@@ -17,6 +19,7 @@ class FormCreate(BaseModel):
 
 
 class FormUpdate(BaseModel):
+    name: str | None = None
     title: str | None = None
     description: str | None = None
     submit_button_text: str | None = None
@@ -27,6 +30,8 @@ class FormUpdate(BaseModel):
 class FormResponse(BaseModel):
     id: uuid.UUID
     account_id: str
+    server_id: str
+    name: str
     title: str
     description: str | None
     submit_button_text: str
@@ -39,5 +44,7 @@ class FormResponse(BaseModel):
 class FormSummary(BaseModel):
     id: uuid.UUID
     account_id: str
+    server_id: str
+    name: str
     title: str
     updated_at: datetime

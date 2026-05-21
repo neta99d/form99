@@ -2,13 +2,26 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from controllers import forms_controller
 from database.db import get_db
 from models.form_model import FormCreate, FormResponse, FormSummary, FormUpdate
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/form-name-check")
+def check_form_name(
+    server_id: str = Query(default=''),
+    account_id: str = Query(...),
+    name: str = Query(...),
+    exclude_id: str | None = Query(default=None),
+) -> dict[str, bool]:
+    exclude_uuid = uuid.UUID(exclude_id) if exclude_id else None
+    with get_db() as conn:
+        available = forms_controller.check_name_unique(conn, server_id, account_id, name, exclude_uuid)
+    return {"available": available}
 
 
 @router.post("/forms", response_model=FormResponse, status_code=201)
@@ -55,7 +68,10 @@ def duplicate_form(form_id: uuid.UUID) -> FormResponse:
 
 
 @router.get("/accounts/{account_id}/forms", response_model=list[FormSummary])
-def get_account_forms(account_id: str) -> list[FormSummary]:
+def get_account_forms(
+    account_id: str,
+    server_id: str = Query(default=''),
+) -> list[FormSummary]:
     with get_db() as conn:
-        rows = forms_controller.get_account_forms(conn, account_id)
+        rows = forms_controller.get_account_forms(conn, account_id, server_id)
     return [FormSummary(**row) for row in rows]

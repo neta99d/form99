@@ -10,6 +10,7 @@ export interface FormBuilderProps {
   mode: 'create' | 'edit'
   formId?: string
   accountId: string
+  serverId?: string
 }
 
 function FormBuilderContent() {
@@ -27,9 +28,9 @@ function FormBuilderContent() {
   )
 }
 
-export function FormBuilder({ mode, formId, accountId }: FormBuilderProps) {
+export function FormBuilder({ mode, formId, accountId, serverId }: FormBuilderProps) {
   return (
-    <FormBuilderProvider mode={mode} formId={formId} accountId={accountId}>
+    <FormBuilderProvider mode={mode} formId={formId} accountId={accountId} serverId={serverId}>
       <FormBuilderContent />
     </FormBuilderProvider>
   )

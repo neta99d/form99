@@ -3,10 +3,13 @@ import { type FormField, type FormConfig } from './form-builder-types'
 const API_BASE = process.env.NEXT_PUBLIC_FORM99_API_URL || 'http://localhost:8000'
 
 export const DEFAULT_ACCOUNT_ID = '0'
+export const DEFAULT_SERVER_ID = ''
 
 export interface FormSummary {
   id: string
   account_id: string
+  server_id: string
+  name: string
   title: string
   updated_at: string
 }
@@ -14,6 +17,8 @@ export interface FormSummary {
 export interface FormResponse {
   id: string
   account_id: string
+  server_id: string
+  name: string
   title: string
   description: string | null
   submit_button_text: string
@@ -25,6 +30,8 @@ export interface FormResponse {
 
 export interface FormCreatePayload {
   account_id: string
+  server_id: string
+  name: string
   title: string
   description: string | null
   submit_button_text: string
@@ -33,6 +40,7 @@ export interface FormCreatePayload {
 }
 
 export interface FormUpdatePayload {
+  name?: string
   title?: string
   description?: string | null
   submit_button_text?: string
@@ -43,6 +51,8 @@ export interface FormUpdatePayload {
 export function formConfigToPayload(config: FormConfig, accountId: string): FormCreatePayload {
   return {
     account_id: accountId,
+    server_id: config.serverId,
+    name: config.name,
     title: config.title,
     description: config.description ?? null,
     submit_button_text: config.submitButtonText,
@@ -51,8 +61,9 @@ export function formConfigToPayload(config: FormConfig, accountId: string): Form
   }
 }
 
-export async function getForms(accountId: string): Promise<FormSummary[]> {
-  const res = await fetch(`${API_BASE}/api/accounts/${accountId}/forms`)
+export async function getForms(accountId: string, serverId: string = DEFAULT_SERVER_ID): Promise<FormSummary[]> {
+  const params = new URLSearchParams({ server_id: serverId })
+  const res = await fetch(`${API_BASE}/api/accounts/${accountId}/forms?${params}`)
   if (!res.ok) throw new Error(`Failed to fetch forms: ${res.status}`)
   return res.json() as Promise<FormSummary[]>
 }
@@ -69,7 +80,10 @@ export async function createForm(payload: FormCreatePayload): Promise<FormRespon
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to create form: ${res.status}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { detail?: string }
+    throw new Error(err.detail ?? `Failed to create form: ${res.status}`)
+  }
   return res.json() as Promise<FormResponse>
 }
 
@@ -79,7 +93,10 @@ export async function updateForm(formId: string, payload: FormUpdatePayload): Pr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  if (!res.ok) throw new Error(`Failed to update form: ${res.status}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { detail?: string }
+    throw new Error(err.detail ?? `Failed to update form: ${res.status}`)
+  }
   return res.json() as Promise<FormResponse>
 }
 
@@ -92,4 +109,18 @@ export async function duplicateForm(formId: string): Promise<FormResponse> {
   const res = await fetch(`${API_BASE}/api/forms/${formId}/duplicate`, { method: 'POST' })
   if (!res.ok) throw new Error(`Failed to duplicate form: ${res.status}`)
   return res.json() as Promise<FormResponse>
+}
+
+export async function checkFormNameUnique(
+  serverId: string,
+  accountId: string,
+  name: string,
+  excludeId?: string,
+): Promise<boolean> {
+  const params = new URLSearchParams({ server_id: serverId, account_id: accountId, name })
+  if (excludeId) params.set('exclude_id', excludeId)
+  const res = await fetch(`${API_BASE}/api/form-name-check?${params}`)
+  if (!res.ok) return true
+  const data = await res.json() as { available: boolean }
+  return data.available
 }

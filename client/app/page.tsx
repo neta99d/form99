@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { he } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
-import { getForms, deleteForm, duplicateForm, DEFAULT_ACCOUNT_ID, type FormSummary } from '@/lib/forms-api'
+import { getForms, deleteForm, duplicateForm, DEFAULT_ACCOUNT_ID, DEFAULT_SERVER_ID, type FormSummary } from '@/lib/forms-api'
 
 const DEMO_LINK = 'https://form99.app/form/demo'
 
@@ -19,7 +19,7 @@ export default function Page() {
 
   const loadForms = useCallback(async () => {
     try {
-      const data = await getForms(DEFAULT_ACCOUNT_ID)
+      const data = await getForms(DEFAULT_ACCOUNT_ID, DEFAULT_SERVER_ID)
       setForms(data)
     } catch {
       toast.error('שגיאה בטעינת הטפסים')
@@ -43,9 +43,9 @@ export default function Page() {
     }
   }
 
-  const handleDelete = async (e: React.MouseEvent, formId: string, formTitle: string) => {
+  const handleDelete = async (e: React.MouseEvent, formId: string, formName: string) => {
     e.stopPropagation()
-    if (!window.confirm(`למחוק את הטופס "${formTitle}"?`)) return
+    if (!window.confirm(`למחוק את הטופס "${formName}"?`)) return
     try {
       await deleteForm(formId)
       await loadForms()
@@ -128,7 +128,7 @@ export default function Page() {
                         <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                           <FileText className="size-4 text-primary" />
                         </div>
-                        <span className="text-sm font-medium text-foreground">{form.title}</span>
+                        <span className="text-sm font-medium text-foreground">{form.name}</span>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-sm text-muted-foreground">
@@ -142,7 +142,7 @@ export default function Page() {
                           label="שכפול"
                         />
                         <ActionButton
-                          onClick={e => handleDelete(e, form.id, form.title)}
+                          onClick={e => handleDelete(e, form.id, form.name)}
                           icon={<Trash2 className="size-3.5" />}
                           label="מחיקה"
                           destructive

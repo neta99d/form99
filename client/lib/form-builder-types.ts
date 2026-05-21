@@ -73,6 +73,8 @@ export type FormDirection = 'ltr' | 'rtl'
 
 export interface FormConfig {
   id: string
+  name: string
+  serverId: string
   title: string
   description?: string
   fields: FormField[]

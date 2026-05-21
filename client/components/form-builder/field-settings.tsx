@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useFormBuilder } from '@/lib/form-builder-store'
+import { checkFormNameUnique } from '@/lib/forms-api'
 import {
   type FormField,
   type SelectOption,
@@ -571,8 +572,24 @@ function FieldSettingsForm({ field }: { field: FormField }) {
 }
 
 export function FieldSettings() {
-  const { formConfig, selectedFieldId, updateFormConfig } = useFormBuilder()
+  const { formConfig, selectedFieldId, updateFormConfig, accountId, serverId, formId } = useFormBuilder()
   const selectedField = formConfig.fields.find(f => f.id === selectedFieldId)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleNameChange = (value: string) => {
+    updateFormConfig({ name: value })
+    setNameError(null)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!value.trim()) {
+      setNameError('שם הטופס הוא שדה חובה')
+      return
+    }
+    debounceRef.current = setTimeout(async () => {
+      const available = await checkFormNameUnique(serverId, accountId, value.trim(), formId)
+      if (!available) setNameError('שם זה כבר בשימוש')
+    }, 400)
+  }
 
   return (
     <aside className="w-72 border-r border-border bg-card flex flex-col h-full">
@@ -588,6 +605,19 @@ export function FieldSettings() {
           <div className="space-y-6">
             <SettingsSection title="פרטי הטופס">
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="formName">שם הטופס (פנימי)</Label>
+                  <Input
+                    id="formName"
+                    value={formConfig.name ?? ''}
+                    onChange={e => handleNameChange(e.target.value)}
+                    placeholder="שם ייחודי לטופס"
+                    className={cn(nameError && 'border-destructive focus-visible:ring-destructive')}
+                  />
+                  {nameError && (
+                    <p className="text-xs text-destructive">{nameError}</p>
+                  )}
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="formTitle">כותרת הטופס</Label>
                   <Input

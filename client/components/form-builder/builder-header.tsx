@@ -33,6 +33,7 @@ export function BuilderHeader() {
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [sendStatus, setSendStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const handleCopyHTML = async () => {
     await navigator.clipboard.writeText(generateFormHTML(formConfig))
@@ -41,10 +42,18 @@ export function BuilderHeader() {
   }
 
   const handleSave = async () => {
+    if (!formConfig.name.trim()) {
+      setSendStatus('error')
+      setSendError('יש להזין שם לטופס בהגדרות הטופס')
+      setTimeout(() => { setSendStatus('idle'); setSendError(null) }, 5000)
+      return
+    }
     setSendStatus('loading')
+    setSendError(null)
     try {
       if (mode === 'edit' && formId) {
         await updateForm(formId, {
+          name: formConfig.name,
           title: formConfig.title,
           description: formConfig.description ?? null,
           submit_button_text: formConfig.submitButtonText,
@@ -60,14 +69,18 @@ export function BuilderHeader() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formConfigToPayload(formConfig, accountId)),
         })
-        if (!response.ok) throw new Error(`${response.status}`)
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({})) as { detail?: string }
+          throw new Error(err.detail ?? `${response.status}`)
+        }
         const created = await response.json() as { id: string }
         setSendStatus('success')
         setTimeout(() => router.push(`/forms/${created.id}/edit`), 800)
       }
-    } catch {
+    } catch (e) {
       setSendStatus('error')
-      setTimeout(() => setSendStatus('idle'), 5000)
+      setSendError(e instanceof Error ? e.message : null)
+      setTimeout(() => { setSendStatus('idle'); setSendError(null) }, 5000)
     }
   }
 
@@ -152,7 +165,7 @@ export function BuilderHeader() {
                 ) : sendStatus === 'success' ? (
                   <><CheckCircle className="size-4" />{mode === 'edit' ? 'נשמר!' : 'נוצר!'}</>
                 ) : sendStatus === 'error' ? (
-                  <><XCircle className="size-4" />נכשל</>
+                  <><XCircle className="size-4" />{sendError ?? 'נכשל'}</>
                 ) : mode === 'edit' ? (
                   <><Save className="size-4" />שמירה</>
                 ) : (
