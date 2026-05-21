@@ -321,7 +321,7 @@ function FieldSettingsForm({ field }: { field: FormField }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div className="space-y-1">
-              <Label htmlFor="conditionalVisibility" className="cursor-pointer">הצגה לפי תשובה</Label>
+              <Label htmlFor="conditionalVisibility" className="cursor-pointer">תנאי</Label>
               <p className="text-xs text-muted-foreground">
                 הציגו את השדה רק כששדה קודם עומד בתנאי שבחרתם.
               </p>
