@@ -272,7 +272,7 @@ function FieldSettingsForm({ field }: { field: FormField }) {
               id="halfWidth"
               checked={(field.layout?.column ?? 'full') !== 'full'}
               onCheckedChange={checked => {
-                handleUpdate({ layout: { row: field.layout?.row ?? 0, column: checked ? 'left' : 'full' } })
+                handleUpdate({ layout: { row: field.layout?.row ?? 0, column: checked ? (formConfig.direction === 'rtl' ? 'right' : 'left') : 'full' } })
               }}
             />
           </div>
