@@ -1,14 +1,18 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Plus, Copy, Trash2, Link, BarChart2, FileText } from 'lucide-react'
+import { Plus, Copy, Trash2, Link, BarChart2, FileText, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { he } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
-import { getForms, deleteForm, duplicateForm, DEFAULT_ACCOUNT_ID, DEFAULT_SERVER_ID, type FormSummary } from '@/lib/forms-api'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { getForms, deleteForm, duplicateForm, createForm, checkFormNameUnique, DEFAULT_ACCOUNT_ID, DEFAULT_SERVER_ID, type FormSummary } from '@/lib/forms-api'
+import { cn } from '@/lib/utils'
 
 const DEMO_LINK = 'https://form99.app/form/demo'
 
@@ -16,6 +20,7 @@ export default function Page() {
   const router = useRouter()
   const [forms, setForms] = useState<FormSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const loadForms = useCallback(async () => {
     try {
@@ -82,7 +87,7 @@ export default function Page() {
           </div>
           <h1 className="text-base font-semibold text-foreground">FORMS</h1>
         </div>
-        <Button onClick={() => router.push('/forms/new')} className="gap-2">
+        <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="size-4" />
           טופס חדש
         </Button>
@@ -97,7 +102,7 @@ export default function Page() {
             טוען טפסים...
           </div>
         ) : forms.length === 0 ? (
-          <EmptyState onCreateNew={() => router.push('/forms/new')} />
+          <EmptyState onCreateNew={() => setCreateOpen(true)} />
         ) : (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <table className="w-full">
@@ -167,7 +172,114 @@ export default function Page() {
           </div>
         )}
       </main>
+
+      <CreateFormDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={id => router.push(`/forms/${id}/edit`)}
+      />
     </div>
+  )
+}
+
+interface CreateFormDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onCreated: (id: string) => void
+}
+
+function CreateFormDialog({ open, onOpenChange, onCreated }: CreateFormDialogProps) {
+  const [name, setName] = useState('')
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [status, setStatus] = useState<'idle' | 'loading'>('idle')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      setName('')
+      setNameError(null)
+      setStatus('idle')
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (!name.trim()) {
+      setNameError(null)
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      const available = await checkFormNameUnique(DEFAULT_SERVER_ID, DEFAULT_ACCOUNT_ID, name.trim())
+      setNameError(available ? null : 'שם זה כבר בשימוש')
+    }, 400)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [name])
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!name.trim()) {
+      setNameError('שם הטופס הוא שדה חובה')
+      return
+    }
+    if (nameError) return
+
+    setStatus('loading')
+    try {
+      const created = await createForm({
+        account_id: DEFAULT_ACCOUNT_ID,
+        server_id: DEFAULT_SERVER_ID,
+        name: name.trim(),
+        title: '',
+        description: null,
+        submit_button_text: 'שליחה',
+        direction: 'rtl',
+        fields: [],
+      })
+      onCreated(created.id)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      setNameError(msg.includes('כבר בשימוש') ? 'שם זה כבר בשימוש' : 'שגיאה ביצירת הטופס')
+      setStatus('idle')
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm" dir="rtl">
+        <DialogHeader>
+          <DialogTitle>טופס חדש</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-1">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="new-form-name">שם הטופס</Label>
+            <Input
+              id="new-form-name"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="למשל: טופס יצירת קשר"
+              className={cn(nameError && 'border-destructive focus-visible:ring-destructive')}
+              autoFocus
+            />
+            {nameError && <p className="text-xs text-destructive">{nameError}</p>}
+          </div>
+          <Button type="submit" disabled={status === 'loading' || !!nameError} className="w-full">
+            {status === 'loading' ? (
+              <>
+                <Loader2 className="size-4 animate-spin ml-2" />
+                יוצר...
+              </>
+            ) : (
+              'יצירה'
+            )}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
