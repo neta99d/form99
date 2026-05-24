@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { Plus, Copy, Trash2, Link, BarChart2, FileText, Loader2 } from 'lucide-react'
+import { Plus, Copy, Trash2, Link, BarChart2, FileText, Loader2, Search, ChevronUp, ChevronDown, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { he } from 'date-fns/locale'
@@ -19,6 +19,21 @@ export default function Page() {
   const [forms, setForms] = useState<FormSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortDirection, setSortDirection] = useState<'desc' | 'asc'>('desc')
+
+  const filteredForms = useMemo(() => {
+    let result = [...forms]
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase()
+      result = result.filter(f => f.name.toLowerCase().includes(q))
+    }
+    result.sort((a, b) => {
+      const diff = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime()
+      return sortDirection === 'desc' ? -diff : diff
+    })
+    return result
+  }, [forms, searchQuery, sortDirection])
 
   const loadForms = useCallback(async () => {
     try {
@@ -95,12 +110,38 @@ export default function Page() {
       <main className="max-w-5xl mx-auto px-6 py-8">
         <h2 className="text-xl font-semibold text-foreground mb-6">הטפסים שלי</h2>
 
+        {!loading && forms.length > 0 && (
+          <div className="relative mb-4">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="חיפוש לפי שם הטופס..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pr-9 pl-9"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-24 text-muted-foreground text-sm">
             טוען טפסים...
           </div>
         ) : forms.length === 0 ? (
           <EmptyState onCreateNew={() => setCreateOpen(true)} />
+        ) : filteredForms.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Search className="size-8 text-muted-foreground mb-3" />
+            <p className="text-sm font-medium text-foreground mb-1">לא נמצאו טפסים</p>
+            <p className="text-xs text-muted-foreground">נסו לשנות את מונחי החיפוש</p>
+          </div>
         ) : (
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <table className="w-full">
@@ -110,7 +151,15 @@ export default function Page() {
                     שם הטופס
                   </th>
                   <th className="text-right text-sm font-medium text-muted-foreground px-5 py-3 w-44">
-                    עדכון אחרון
+                    <button
+                      onClick={() => setSortDirection(d => d === 'desc' ? 'asc' : 'desc')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors"
+                    >
+                      עדכון אחרון
+                      {sortDirection === 'desc'
+                        ? <ChevronDown className="size-3.5" />
+                        : <ChevronUp className="size-3.5" />}
+                    </button>
                   </th>
                   <th className="text-right text-sm font-medium text-muted-foreground px-5 py-3 w-56">
                     פעולות
@@ -118,12 +167,12 @@ export default function Page() {
                 </tr>
               </thead>
               <tbody>
-                {forms.map((form, i) => (
+                {filteredForms.map((form, i) => (
                   <tr
                     key={form.id}
                     onClick={() => router.push(`/forms/${form.id}/edit`)}
                     className={`cursor-pointer transition-colors hover:bg-secondary/30 ${
-                      i !== forms.length - 1 ? 'border-b border-border' : ''
+                      i !== filteredForms.length - 1 ? 'border-b border-border' : ''
                     }`}
                   >
                     <td className="px-5 py-4">
