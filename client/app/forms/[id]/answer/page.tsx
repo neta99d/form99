@@ -285,6 +285,20 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
     }
   }
 
+  const renderField = (field: FormField) => (
+    <div key={field.id} className="space-y-1.5">
+      {field.type !== 'checkbox' && field.type !== 'heading' && field.type !== 'paragraph' && (
+        <label className={cn('text-sm font-medium text-foreground', isRtl && 'text-right block')}>
+          {field.label}
+          {field.required && <span className="text-destructive mr-1">*</span>}
+        </label>
+      )}
+      <FieldInput field={field} value={answers[field.id]} onChange={v => updateAnswer(field.id, v)} isRtl={isRtl} direction={form.direction as 'rtl' | 'ltr'} />
+      {field.helperText && <p className={cn('text-xs text-muted-foreground', isRtl && 'text-right')}>{field.helperText}</p>}
+      {errors[field.id] && <p className="text-xs text-destructive">{errors[field.id]}</p>}
+    </div>
+  )
+
   if (status === 'success') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background" dir={form.direction}>
@@ -316,47 +330,42 @@ export default function AnswerPage({ params }: { params: Promise<{ id: string }>
           {/* Fields */}
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             {rowGroups.map((rowFields, rowIdx) => {
-              const isHalfRow = rowFields.length === 2 && rowFields.every(f => f.layout?.column && f.layout.column !== 'full')
+              const firstColumn = rowFields[0]?.layout?.column ?? 'full'
+              const isHalfRow = firstColumn !== 'full'
 
               if (isHalfRow) {
-                const [a, b] = rowFields
-                const leftField = rowFields.find(f => f.layout?.column === 'left')!
-                const rightField = rowFields.find(f => f.layout?.column === 'right')!
-                const first = isRtl ? rightField : leftField
-                const second = isRtl ? leftField : rightField
+                const loneField = rowFields.length === 1 ? rowFields[0] : null
+                const emptyColumn: 'left' | 'right' = loneField?.layout?.column === 'left' ? 'right' : 'left'
 
                 return (
                   <div key={rowIdx} className="flex gap-4">
-                    {[first, second].map(field => (
-                      <div key={field.id} className="flex-1 min-w-0 space-y-1.5">
-                        {field.type !== 'checkbox' && field.type !== 'heading' && field.type !== 'paragraph' && (
-                          <label className={cn('text-sm font-medium text-foreground', isRtl && 'text-right block')}>
-                            {field.label}
-                            {field.required && <span className="text-destructive mr-1">*</span>}
-                          </label>
+                    {rowFields.map(field => (
+                      <div
+                        key={field.id}
+                        className={cn(
+                          'flex-1 min-w-0',
+                          isRtl && field.layout?.column === 'left' && 'order-2',
+                          isRtl && field.layout?.column === 'right' && 'order-1'
                         )}
-                        <FieldInput field={field} value={answers[field.id]} onChange={v => updateAnswer(field.id, v)} isRtl={isRtl} direction={form.direction as 'rtl' | 'ltr'} />
-                        {field.helperText && <p className={cn('text-xs text-muted-foreground', isRtl && 'text-right')}>{field.helperText}</p>}
-                        {errors[field.id] && <p className="text-xs text-destructive">{errors[field.id]}</p>}
+                      >
+                        {renderField(field)}
                       </div>
                     ))}
+                    {loneField && (
+                      <div
+                        aria-hidden="true"
+                        className={cn(
+                          'flex-1 min-w-0',
+                          isRtl && emptyColumn === 'left' && 'order-2',
+                          isRtl && emptyColumn === 'right' && 'order-1'
+                        )}
+                      />
+                    )}
                   </div>
                 )
               }
 
-              return rowFields.map(field => (
-                <div key={field.id} className="space-y-1.5">
-                  {field.type !== 'checkbox' && field.type !== 'heading' && field.type !== 'paragraph' && (
-                    <label className={cn('text-sm font-medium text-foreground', isRtl && 'text-right block')}>
-                      {field.label}
-                      {field.required && <span className="text-destructive mr-1">*</span>}
-                    </label>
-                  )}
-                  <FieldInput field={field} value={answers[field.id]} onChange={v => updateAnswer(field.id, v)} isRtl={isRtl} direction={form.direction as 'rtl' | 'ltr'} />
-                  {field.helperText && <p className={cn('text-xs text-muted-foreground', isRtl && 'text-right')}>{field.helperText}</p>}
-                  {errors[field.id] && <p className="text-xs text-destructive">{errors[field.id]}</p>}
-                </div>
-              ))
+              return rowFields.map(renderField)
             })}
 
             {status === 'error' && (
