@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
-import { type FormField, type FormConfig, createField, generateFieldId, type FieldType, sanitizeFieldVisibilityRules, normalizeLayoutRows } from './form-builder-types'
+import { type FormField, type FormConfig, type FormTheme, DEFAULT_THEME, createField, generateFieldId, type FieldType, sanitizeFieldVisibilityRules, normalizeLayoutRows } from './form-builder-types'
 import { getForm, DEFAULT_SERVER_ID } from './forms-api'
 
 interface FormBuilderState {
@@ -9,6 +9,7 @@ interface FormBuilderState {
   selectedFieldId: string | null
   previewMode: boolean
   previewDevice: 'desktop' | 'mobile'
+  themeOpen: boolean
   accountId: string
   serverId: string
   mode: 'create' | 'edit'
@@ -29,8 +30,10 @@ interface FormBuilderActions {
   ) => void
   selectField: (id: string | null) => void
   updateFormConfig: (updates: Partial<Pick<FormConfig, 'name' | 'title' | 'description' | 'submitButtonText' | 'direction'>>) => void
+  updateTheme: (theme: FormTheme) => void
   setPreviewMode: (enabled: boolean) => void
   setPreviewDevice: (device: 'desktop' | 'mobile') => void
+  setThemeOpen: (open: boolean) => void
   duplicateField: (id: string) => void
 }
 
@@ -49,6 +52,7 @@ const blankFormConfig: FormConfig = {
   fields: [],
   submitButtonText: 'שליחה',
   direction: 'rtl',
+  theme: DEFAULT_THEME,
 }
 
 interface FormBuilderProviderProps {
@@ -65,6 +69,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId, serverI
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [previewMode, setPreviewModeState] = useState(false)
   const [previewDevice, setPreviewDeviceState] = useState<'desktop' | 'mobile'>('desktop')
+  const [themeOpen, setThemeOpenState] = useState(false)
 
   useEffect(() => {
     if (mode === 'edit' && formId) {
@@ -79,6 +84,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId, serverI
             fields: normalizeLayoutRows(sanitizeFieldVisibilityRules(form.fields)),
             submitButtonText: form.submit_button_text,
             direction: form.direction,
+            theme: form.theme ? { ...DEFAULT_THEME, ...form.theme } as FormTheme : DEFAULT_THEME,
           })
         })
         .catch(() => {
@@ -186,6 +192,14 @@ export function FormBuilderProvider({ children, mode, formId, accountId, serverI
     []
   )
 
+  const updateTheme = useCallback((theme: FormTheme) => {
+    setFormConfig(prev => ({ ...prev, theme }))
+  }, [])
+
+  const setThemeOpen = useCallback((open: boolean) => {
+    setThemeOpenState(open)
+  }, [])
+
   const setPreviewMode = useCallback((enabled: boolean) => {
     setPreviewModeState(enabled)
     if (enabled) setSelectedFieldId(null)
@@ -225,6 +239,7 @@ export function FormBuilderProvider({ children, mode, formId, accountId, serverI
         selectedFieldId,
         previewMode,
         previewDevice,
+        themeOpen,
         accountId,
         serverId: formConfig.serverId,
         mode,
@@ -238,8 +253,10 @@ export function FormBuilderProvider({ children, mode, formId, accountId, serverI
         moveFieldWithLayoutUpdates,
         selectField,
         updateFormConfig,
+        updateTheme,
         setPreviewMode,
         setPreviewDevice,
+        setThemeOpen,
         duplicateField,
       }}
     >

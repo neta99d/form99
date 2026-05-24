@@ -19,6 +19,8 @@ def _deserialize(row: dict) -> dict:
     row = dict(row)
     if isinstance(row.get("fields"), str):
         row["fields"] = json.loads(row["fields"])
+    if isinstance(row.get("theme"), str):
+        row["theme"] = json.loads(row["theme"])
     return row
 
 
@@ -70,9 +72,9 @@ def create_form(conn: psycopg2.extensions.connection, data: FormCreate) -> dict:
             cur.execute(
                 """
                 INSERT INTO forms
-                    (account_id, server_id, name, title, description, submit_button_text, direction, fields)
+                    (account_id, server_id, name, title, description, submit_button_text, direction, fields, theme)
                 VALUES
-                    (%s, %s, %s, %s, %s, %s, %s, %s)
+                    (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING *
                 """,
                 (
@@ -84,6 +86,7 @@ def create_form(conn: psycopg2.extensions.connection, data: FormCreate) -> dict:
                     data.submit_button_text,
                     data.direction,
                     json.dumps(data.fields),
+                    json.dumps(data.theme) if data.theme is not None else None,
                 ),
             )
             return _deserialize(cur.fetchone())
@@ -110,6 +113,9 @@ def update_form(
 
     if "fields" in updates:
         updates["fields"] = json.dumps(updates["fields"])
+
+    if "theme" in updates:
+        updates["theme"] = json.dumps(updates["theme"])
 
     set_clause = ", ".join(f"{col} = %s" for col in updates) + ", updated_at = NOW()"
     values = list(updates.values()) + [str(form_id)]
@@ -166,8 +172,8 @@ def duplicate_form(
         cur.execute(
             """
             INSERT INTO forms
-                (account_id, server_id, name, title, description, submit_button_text, direction, fields)
-            SELECT account_id, server_id, %s, title, description, submit_button_text, direction, fields
+                (account_id, server_id, name, title, description, submit_button_text, direction, fields, theme)
+            SELECT account_id, server_id, %s, title, description, submit_button_text, direction, fields, theme
             FROM forms
             WHERE id = %s
             RETURNING *

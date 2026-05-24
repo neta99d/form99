@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Eye, X, Monitor, Smartphone, Code, Copy, Check, Loader2, CheckCircle, XCircle, ArrowRight, Save, Send } from 'lucide-react'
+import { Eye, X, Monitor, Smartphone, Code, Copy, Check, Loader2, CheckCircle, XCircle, ArrowRight, Save, Send, Paintbrush } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function BuilderHeader() {
@@ -22,8 +22,10 @@ export function BuilderHeader() {
     formConfig,
     previewMode,
     previewDevice,
+    themeOpen,
     setPreviewMode,
     setPreviewDevice,
+    setThemeOpen,
     accountId,
     mode,
     formId,
@@ -59,6 +61,7 @@ export function BuilderHeader() {
           submit_button_text: formConfig.submitButtonText,
           direction: formConfig.direction,
           fields: formConfig.fields,
+          theme: formConfig.theme,
         })
         setSendStatus('success')
         setTimeout(() => setSendStatus('idle'), 3000)
@@ -145,6 +148,14 @@ export function BuilderHeader() {
               >
                 <ArrowRight className="size-4" />
                 חזרה לרשימה
+              </Button>
+              <Button
+                variant={themeOpen ? 'secondary' : 'outline'}
+                onClick={() => setThemeOpen(!themeOpen)}
+                className="gap-1.5"
+              >
+                <Paintbrush className="size-4" />
+                עצב
               </Button>
               <Button variant="outline" onClick={() => setPreviewMode(true)} className="gap-1.5">
                 <Eye className="size-4" />

@@ -16,6 +16,7 @@ class FormCreate(BaseModel):
     submit_button_text: str
     direction: Literal["ltr", "rtl"]
     fields: list[Any]
+    theme: dict[str, Any] | None = None
 
 
 class FormUpdate(BaseModel):
@@ -25,6 +26,7 @@ class FormUpdate(BaseModel):
     submit_button_text: str | None = None
     direction: Literal["ltr", "rtl"] | None = None
     fields: list[Any] | None = None
+    theme: dict[str, Any] | None = None
 
 
 class FormResponse(BaseModel):
@@ -37,6 +39,7 @@ class FormResponse(BaseModel):
     submit_button_text: str
     direction: str
     fields: list[Any]
+    theme: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 

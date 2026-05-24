@@ -71,6 +71,40 @@ export interface FormField {
 
 export type FormDirection = 'ltr' | 'rtl'
 
+export type FormThemePosition =
+  | 'default'
+  | 'left'
+  | 'right'
+  | 'center_with_banner'
+  | 'image_background'
+  | 'center'
+
+export type FormTheme = {
+  backgroundColor: string
+  questionsBackgroundColor: string
+  primaryColor: string
+  questionsColor: string
+  answersColor: string
+  font: string
+  logo: string
+  position: FormThemePosition
+  image: string
+  questionsSize: number
+}
+
+export const DEFAULT_THEME: FormTheme = {
+  backgroundColor: '#ffffff',
+  questionsBackgroundColor: '#f9fafb',
+  primaryColor: '#6366f1',
+  questionsColor: '#1a1a2e',
+  answersColor: '#374151',
+  font: 'inherit',
+  logo: '',
+  position: 'default',
+  image: '',
+  questionsSize: 16,
+}
+
 export interface FormConfig {
   id: string
   name: string
@@ -80,6 +114,7 @@ export interface FormConfig {
   fields: FormField[]
   submitButtonText: string
   direction: FormDirection
+  theme: FormTheme
 }
 
 export interface UserInfo {

@@ -1,4 +1,4 @@
-import { type FormField, type FormConfig, type FormAnswerValue } from './form-builder-types'
+import { type FormField, type FormConfig, type FormTheme, type FormAnswerValue } from './form-builder-types'
 
 const API_BASE = process.env.NEXT_PUBLIC_FORM99_API_URL || 'http://localhost:8000'
 
@@ -24,6 +24,7 @@ export interface FormResponse {
   submit_button_text: string
   direction: 'ltr' | 'rtl'
   fields: FormField[]
+  theme: FormTheme | null
   created_at: string
   updated_at: string
 }
@@ -37,6 +38,7 @@ export interface FormCreatePayload {
   submit_button_text: string
   direction: 'ltr' | 'rtl'
   fields: FormField[]
+  theme: FormTheme | null
 }
 
 export interface FormUpdatePayload {
@@ -46,6 +48,7 @@ export interface FormUpdatePayload {
   submit_button_text?: string
   direction?: 'ltr' | 'rtl'
   fields?: FormField[]
+  theme?: FormTheme | null
 }
 
 export function formConfigToPayload(config: FormConfig, accountId: string): FormCreatePayload {
@@ -58,6 +61,7 @@ export function formConfigToPayload(config: FormConfig, accountId: string): Form
     submit_button_text: config.submitButtonText,
     direction: config.direction,
     fields: config.fields,
+    theme: config.theme,
   }
 }
 

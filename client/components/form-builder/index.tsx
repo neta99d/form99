@@ -5,6 +5,7 @@ import { BuilderHeader } from './builder-header'
 import { FieldLibrary } from './field-library'
 import { FormCanvas } from './form-canvas'
 import { FieldSettings } from './field-settings'
+import { ThemeSettings } from './theme-settings'
 
 export interface FormBuilderProps {
   mode: 'create' | 'edit'
@@ -14,13 +15,13 @@ export interface FormBuilderProps {
 }
 
 function FormBuilderContent() {
-  const { previewMode } = useFormBuilder()
+  const { previewMode, themeOpen } = useFormBuilder()
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <BuilderHeader />
       <div className="flex-1 flex overflow-hidden">
-        {!previewMode && <FieldSettings />}
+        {!previewMode && (themeOpen ? <ThemeSettings /> : <FieldSettings />)}
         <FormCanvas />
         {!previewMode && <FieldLibrary />}
       </div>
