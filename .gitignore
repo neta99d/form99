@@ -14,6 +14,9 @@ client/.env
 server/.env
 
 
+# Claude Code local settings
+.claude/settings.local.json
+
 # Common ignores
 node_modules/
 client/node_modules/
